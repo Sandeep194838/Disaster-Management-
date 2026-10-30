@@ -1,0 +1,30 @@
+# Node dependencies
+node_modules/
+
+# Environment files — NEVER commit actual secrets
+server/.env
+client/.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build outputs
+dist/
+build/
+
+# Test coverage
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+
