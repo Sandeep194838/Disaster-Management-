@@ -1,1 +1,0 @@
-"# Disaster-Management-"  initgit add README.mdgit commit -m "first commit"git branch -M maingit remote add origin https://github.com/Sandeep194838/Disaster-Management-.gitgit push -u origin main
