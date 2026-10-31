@@ -300,6 +300,21 @@ describe('Duplicate detection', () => {
 
 // ── Test 6: Authorization ─────────────────────────────────────────────────────
 describe('Authorization', () => {
+  test('Volunteer management endpoints require authentication', async () => {
+    const createRes = await request(app).post('/api/volunteers').send({
+      displayName: 'Unauthorized Volunteer',
+      username: 'unauthorized_volunteer',
+      password: 'TempPass123!',
+    });
+    const deleteRes = await request(app).delete('/api/volunteers/000000000000000000000000');
+    const assignRes = await request(app).post('/api/volunteers/assign?incidentId=000000000000000000000000')
+      .send({ volunteerId: '000000000000000000000000' });
+
+    expect(createRes.status).toBe(401);
+    expect(deleteRes.status).toBe(401);
+    expect(assignRes.status).toBe(401);
+  });
+
   dbTest('TEST 15: Volunteer cannot access admin analytics', async () => {
     const res = await request(app)
       .get('/api/analytics/summary')
@@ -390,5 +405,81 @@ describe('Persistence', () => {
     expect(res.status).toBe(200);
     expect(res.body.data._id).toBe(createdIncidentId);
     expect(res.body.data.ref).toBe(createdIncidentRef);
+  });
+});
+
+// ── Volunteer management & dispatch ──────────────────────────────────────────
+describe('Volunteer management and dispatch', () => {
+  let managedVolunteerId;
+
+  dbTest('Coordinator can create volunteer accounts without exposing passwords', async () => {
+    const res = await request(app)
+      .post('/api/volunteers')
+      .set('Authorization', `Bearer ${coordinatorToken}`)
+      .send({
+        displayName: 'Managed Test Volunteer',
+        username: 'managed_volunteer',
+        password: 'TempPass123!',
+        profile: {
+          serviceArea: 'MVP Colony',
+          teamAffiliation: 'Test Rescue Cell',
+          skills: ['First Aid', 'Water Rescue'],
+        },
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.username).toBe('managed_volunteer');
+    expect(res.body.data.role).toBe('volunteer');
+    expect(res.body.data.isActive).toBe(true);
+    expect(JSON.stringify(res.body)).not.toContain('TempPass123!');
+    expect(JSON.stringify(res.body)).not.toContain('passwordHash');
+    managedVolunteerId = res.body.data.id;
+  });
+
+  dbTest('Deactivation preserves volunteer IDs and supports restoration', async () => {
+    const deleteRes = await request(app)
+      .delete(`/api/volunteers/${managedVolunteerId}`)
+      .set('Authorization', `Bearer ${coordinatorToken}`);
+    expect(deleteRes.status).toBe(200);
+    expect(deleteRes.body.data.isActive).toBe(false);
+    expect(deleteRes.body.data.id).toBe(managedVolunteerId);
+
+    const listRes = await request(app)
+      .get('/api/volunteers?includeInactive=true')
+      .set('Authorization', `Bearer ${coordinatorToken}`);
+    expect(listRes.body.data.some(v => String(v._id) === String(managedVolunteerId) && !v.isActive)).toBe(true);
+
+    const restoreRes = await request(app)
+      .patch(`/api/volunteers/${managedVolunteerId}/reactivate`)
+      .set('Authorization', `Bearer ${coordinatorToken}`);
+    expect(restoreRes.status).toBe(200);
+    expect(restoreRes.body.data.isActive).toBe(true);
+  });
+
+  dbTest('Coordinator can assign a volunteer and completion restores availability', async () => {
+    const assignRes = await request(app)
+      .post(`/api/volunteers/assign?incidentId=${createdIncidentId}`)
+      .set('Authorization', `Bearer ${coordinatorToken}`)
+      .send({ volunteerId, coordinatorNote: 'Test dispatch' });
+    expect(assignRes.status).toBe(201);
+    expect(assignRes.body.data.status).toBe('sent');
+
+    const availabilityRes = await request(app)
+      .patch(`/api/volunteers/${volunteerId}/availability`)
+      .set('Authorization', `Bearer ${coordinatorToken}`)
+      .send({ availability: 'available' });
+    expect(availabilityRes.status).toBe(409);
+
+    const deactivateRes = await request(app)
+      .delete(`/api/volunteers/${volunteerId}`)
+      .set('Authorization', `Bearer ${coordinatorToken}`);
+    expect(deactivateRes.status).toBe(409);
+
+    const progressRes = await request(app)
+      .patch(`/api/volunteers/assignments/${assignRes.body.data._id}`)
+      .set('Authorization', `Bearer ${volunteerToken}`)
+      .send({ status: 'completed' });
+    expect(progressRes.status).toBe(200);
+    expect((await User.findById(volunteerId)).profile.availability).toBe('available');
   });
 });

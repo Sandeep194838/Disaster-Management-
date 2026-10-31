@@ -6,7 +6,7 @@
  * Offline: serves the cached shell so the UI loads; API calls fail gracefully.
  */
 
-const CACHE_NAME = 'sahyogai-shell-v1';
+const CACHE_NAME = 'sahyogai-shell-v2';
 const SHELL_URLS = [
   '/',
   '/index.html',
@@ -64,4 +64,3 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
-

@@ -85,9 +85,11 @@ This creates:
 - `admin` / `Admin@2024!` — Administrator
 - `coordinator` / `Coord@2024!` — Emergency Coordinator  
 - `analyst` / `Analyst@2024!` — Read-only Analyst
-- 4 demo volunteer accounts
+- `kiran_nss`, `priya_redcross`, `team_delta`, `team_braver` / `Demo@2024!` — Demo volunteer accounts
 - 6 realistic Visakhapatnam demo incidents
 - 6 demo resource inventory entries
+
+The Volunteers page displays each record's ID. Administrators and coordinators can add volunteers, deactivate or reactivate them, update availability, and assign available volunteers to incidents. Deactivation preserves the volunteer ID and assignment history, and is blocked while the volunteer has active assignments.
 
 ### 4. Start the server
 
@@ -167,8 +169,11 @@ See `tests/api.test.js` and `tests/triage.test.js` for all test cases.
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/api/volunteers` | Required | List volunteers |
+| POST | `/api/volunteers` | Coordinator+ | Create a volunteer account |
 | GET | `/api/volunteers/me` | Required | Own profile + assignments |
 | PATCH | `/api/volunteers/:id/availability` | Required | Update availability |
+| DELETE | `/api/volunteers/:id` | Coordinator+ | Deactivate while preserving history and ID |
+| PATCH | `/api/volunteers/:id/reactivate` | Coordinator+ | Restore a deactivated volunteer |
 | POST | `/api/volunteers/assign?incidentId=X` | Coordinator+ | Assign volunteer |
 | PATCH | `/api/volunteers/assignments/:id` | Required | Update progress |
 
@@ -271,6 +276,7 @@ A `Dockerfile` can be added at `server/Dockerfile`. The app listens on `PORT` en
 | Audit trail | ✅ Implemented |
 | Real-time SSE updates | ✅ Implemented |
 | Volunteer assignment workflow | ✅ Implemented |
+| Admin/coordinator volunteer account management | ✅ Implemented |
 | Resource inventory with atomic updates | ✅ Implemented |
 | Urgency override with audit | ✅ Implemented |
 | Analytics dashboard | ✅ Implemented |

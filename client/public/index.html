@@ -736,6 +736,15 @@
           </p>
         </div>
         <div class="flex items-center gap-2">
+          <div id="volunteerAdminControls" class="hidden flex items-center gap-2">
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 whitespace-nowrap">
+              <input id="showInactiveVolunteers" type="checkbox" onchange="fetchVolunteers()" class="rounded border-slate-300">
+              Show inactive
+            </label>
+            <button onclick="toggleAddVolunteerForm()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl font-semibold whitespace-nowrap">
+              <i class="fa-solid fa-user-plus mr-1"></i>Add Volunteer
+            </button>
+          </div>
           <select id="volAvailabilityFilter" onchange="fetchVolunteers()" class="text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 font-medium text-slate-700 outline-none">
             <option value="">All Availability</option>
             <option value="available">🟢 Available Only</option>
@@ -747,6 +756,32 @@
           </button>
         </div>
       </div>
+
+      <form id="newVolunteerForm" onsubmit="createVolunteer(event)" class="hidden bg-white rounded-2xl border border-slate-200 p-5 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <h2 class="sm:col-span-2 font-bold text-slate-900">Add Volunteer Account</h2>
+        <label class="text-xs font-semibold text-slate-700">Display name
+          <input id="newVolunteerName" required minlength="2" maxlength="100" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" autocomplete="name">
+        </label>
+        <label class="text-xs font-semibold text-slate-700">Username
+          <input id="newVolunteerUsername" required minlength="3" maxlength="50" pattern="[A-Za-z0-9_.\-]+" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" autocomplete="username">
+        </label>
+        <label class="text-xs font-semibold text-slate-700">Temporary password (8+ characters)
+          <input id="newVolunteerPassword" type="password" required minlength="8" maxlength="128" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" autocomplete="new-password">
+        </label>
+        <label class="text-xs font-semibold text-slate-700">Service area
+          <input id="newVolunteerArea" maxlength="200" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal">
+        </label>
+        <label class="text-xs font-semibold text-slate-700">Team affiliation
+          <input id="newVolunteerTeam" maxlength="100" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal">
+        </label>
+        <label class="text-xs font-semibold text-slate-700">Skills (comma-separated)
+          <input id="newVolunteerSkills" maxlength="500" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" placeholder="First Aid, Water Rescue">
+        </label>
+        <div class="sm:col-span-2 flex justify-end gap-2">
+          <button type="button" onclick="toggleAddVolunteerForm(false)" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-semibold">Cancel</button>
+          <button type="submit" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold">Create Volunteer</button>
+        </div>
+      </form>
 
       <div id="volunteersGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <!-- Rendered by JS -->
@@ -1307,33 +1342,43 @@
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      // Try contacting the live backend
+      if (window.location.protocol === 'file:') {
+        isServerConnected = false;
+        setModeBanner(false);
+        return handleLocalMockApi(endpoint, method, body);
+      }
+
+      // Use the local engine only when the server cannot be reached.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      let res;
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
-        const res = await fetch(`${API_BASE}${endpoint}`, {
+        res = await fetch(`${API_BASE}${endpoint}`, {
           method,
           headers,
           body: body ? JSON.stringify(body) : undefined,
           signal: controller.signal
         });
-        clearTimeout(timeoutId);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-
-        if (!isServerConnected) {
-          isServerConnected = true;
-          setModeBanner(true);
-        }
-        return data;
       } catch (networkErr) {
-        // Fall back to seamless local client-side standalone engine
-        if (isServerConnected) {
-          isServerConnected = false;
+        if (networkErr.name === 'AbortError' && isServerConnected) {
+          throw new Error('The server request timed out. Check the connection and verify the action before trying again.');
         }
+        isServerConnected = false;
         setModeBanner(false);
         return handleLocalMockApi(endpoint, method, body);
+      } finally {
+        clearTimeout(timeoutId);
       }
+
+      const data = await res.json();
+      isServerConnected = true;
+      setModeBanner(true);
+      if (!res.ok) {
+        const error = new Error(data.error || `HTTP ${res.status}`);
+        error.status = res.status;
+        throw error;
+      }
+      return data;
     }
 
     function setModeBanner(connected) {
@@ -1367,13 +1412,14 @@
 
       // Auth login
       if (endpoint === '/auth/login') {
-        const role = body.username === 'admin' ? 'admin' : (body.username === 'analyst' ? 'analyst' : (body.username.includes('nss') ? 'volunteer' : 'coordinator'));
+        const volunteerUsernames = ['kiran_nss', 'priya_redcross', 'team_delta', 'team_braver'];
+        const role = body.username === 'admin' ? 'admin' : (body.username === 'analyst' ? 'analyst' : (volunteerUsernames.includes(body.username) ? 'volunteer' : 'coordinator'));
         const u = { displayName: body.username.charAt(0).toUpperCase() + body.username.slice(1), role: role, username: body.username };
         return { success: true, token: 'mock-local-token', user: u };
       }
 
       // Incidents list
-      if (endpoint.startsWith('/incidents') && method === 'GET' && !endpoint.includes('/triage') && !endpoint.includes('/duplicates')) {
+      if (endpoint.split('?')[0] === '/incidents' && method === 'GET') {
         let list = [...db.incidents];
         const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
         const urg = urlParams.get('urgency');
@@ -1479,7 +1525,66 @@
 
       // Volunteers
       if (endpoint.startsWith('/volunteers') && method === 'GET') {
-        return { success: true, data: db.volunteers };
+        const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
+        const includeInactive = urlParams.get('includeInactive') === 'true';
+        const availability = urlParams.get('availability');
+        const volunteers = db.volunteers.filter(v =>
+          (includeInactive || v.isActive !== false) &&
+          (!availability || v.profile?.availability === availability)
+        );
+        return { success: true, data: volunteers };
+      }
+
+      if (endpoint === '/volunteers' && method === 'POST') {
+        const volunteer = {
+          _id: `vol-${Date.now()}`,
+          displayName: body.displayName,
+          username: body.username,
+          role: 'volunteer',
+          isActive: true,
+          profile: { ...body.profile, availability: 'available' }
+        };
+        db.volunteers.unshift(volunteer);
+        db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || 'Coordinator', action: 'volunteer:created', entityRef: volunteer.username });
+        saveLocalDB(db);
+        return { success: true, data: volunteer };
+      }
+
+      if (/^\/volunteers\/[^/]+$/.test(endpoint) && method === 'DELETE') {
+        const volunteerId = endpoint.split('/')[2];
+        const volunteer = db.volunteers.find(v => v._id === volunteerId);
+        if (!volunteer) throw new Error('Volunteer not found.');
+        if (volunteer.profile?.availability === 'assigned') {
+          throw new Error('Volunteer has active assignments. Complete or cancel them before deactivation.');
+        }
+        volunteer.isActive = false;
+        db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || 'Coordinator', action: 'volunteer:deactivated', entityRef: volunteer.username || volunteer.displayName });
+        saveLocalDB(db);
+        return { success: true, data: volunteer };
+      }
+
+      if (endpoint.startsWith('/volunteers/') && endpoint.endsWith('/reactivate') && method === 'PATCH') {
+        const volunteerId = endpoint.split('/')[2];
+        const volunteer = db.volunteers.find(v => v._id === volunteerId);
+        if (!volunteer) throw new Error('Volunteer not found.');
+        volunteer.isActive = true;
+        if (volunteer.profile?.availability === 'assigned') volunteer.profile.availability = 'available';
+        db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || 'Coordinator', action: 'volunteer:reactivated', entityRef: volunteer.username || volunteer.displayName });
+        saveLocalDB(db);
+        return { success: true, data: volunteer };
+      }
+
+      if (endpoint.startsWith('/volunteers/') && endpoint.endsWith('/availability') && method === 'PATCH') {
+        const volunteerId = endpoint.split('/')[2];
+        const volunteer = db.volunteers.find(v => v._id === volunteerId);
+        if (!volunteer) throw new Error('Volunteer not found.');
+        volunteer.profile = volunteer.profile || {};
+        if (body.availability === 'available' && volunteer.profile.availability === 'assigned') {
+          throw new Error('Volunteer has active assignments and cannot be marked available yet.');
+        }
+        volunteer.profile.availability = body.availability;
+        saveLocalDB(db);
+        return { success: true, data: volunteer };
       }
 
       // Volunteer assign
@@ -1488,7 +1593,7 @@
         const incId = urlParams.get('incidentId');
         const inc = db.incidents.find(i => i._id === incId);
         const vol = db.volunteers.find(v => v._id === body.volunteerId);
-        if (inc && vol) {
+        if (inc && vol && vol.isActive !== false && vol.profile?.availability === 'available') {
           inc.status = "assigned";
           inc.assignments = [{ volunteerName: vol.displayName, volunteerId: vol._id }];
           vol.profile.availability = "assigned";
@@ -1682,8 +1787,15 @@
     async function initAuth() {
       const token = localStorage.getItem('sahyog_token');
       if (!token) {
-        // Auto-assign Demo Coordinator persona for instant full capabilities
-        currentUser = { displayName: "Demo Coordinator", role: "coordinator", username: "coordinator" };
+        try {
+          const health = await api('/health');
+          currentUser = health.service === 'SahyogAI API'
+            ? null
+            : { displayName: "Demo Coordinator", role: "coordinator", username: "coordinator" };
+        } catch (err) {
+          currentUser = null;
+          showToast(`Could not verify the current session: ${err.message}`, 'error');
+        }
         renderAuthUI(currentUser);
         return;
       }
@@ -1691,9 +1803,11 @@
         const res = await api('/auth/me');
         currentUser = res.user;
         renderAuthUI(currentUser);
-      } catch (e) {
-        currentUser = { displayName: "Demo Coordinator", role: "coordinator", username: "coordinator" };
+      } catch (err) {
+        if (err.status === 401) localStorage.removeItem('sahyog_token');
+        currentUser = null;
         renderAuthUI(currentUser);
+        showToast(`Could not restore your session: ${err.message}`, 'error');
       }
     }
 
@@ -1754,6 +1868,63 @@
         closeLoginModal();
         showToast(`Signed in as ${currentUser.displayName} (${currentUser.role})`, 'success');
         fetchIncidents();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function hasCoordinatorAccess() {
+      return ['admin', 'coordinator'].includes(currentUser?.role);
+    }
+
+    function toggleAddVolunteerForm(show = true) {
+      document.getElementById('newVolunteerForm').classList.toggle('hidden', !show);
+    }
+
+    async function createVolunteer(e) {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const skills = document.getElementById('newVolunteerSkills').value
+        .split(',')
+        .map(skill => skill.trim())
+        .filter(Boolean);
+
+      try {
+        const result = await api('/volunteers', 'POST', {
+          displayName: document.getElementById('newVolunteerName').value.trim(),
+          username: document.getElementById('newVolunteerUsername').value.trim(),
+          password: document.getElementById('newVolunteerPassword').value,
+          profile: {
+            serviceArea: document.getElementById('newVolunteerArea').value.trim(),
+            teamAffiliation: document.getElementById('newVolunteerTeam').value.trim(),
+            skills
+          }
+        });
+        form.reset();
+        toggleAddVolunteerForm(false);
+        showToast(`Volunteer created: ${result.data?.username || result.data?.id || 'account added'}`, 'success');
+        await fetchVolunteers();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function deactivateVolunteer(volunteerId) {
+      if (!confirm('Deactivate this volunteer? Their ID and assignment history will be preserved.')) return;
+      try {
+        await api(`/volunteers/${encodeURIComponent(volunteerId)}`, 'DELETE');
+        showToast('Volunteer deactivated. Their demo ID and history are preserved.', 'success');
+        await fetchVolunteers();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function reactivateVolunteer(volunteerId) {
+      try {
+        await api(`/volunteers/${encodeURIComponent(volunteerId)}/reactivate`, 'PATCH');
+        showToast('Volunteer reactivated.', 'success');
+        await fetchVolunteers();
       } catch (err) {
         showToast(err.message, 'error');
       }
@@ -2007,6 +2178,7 @@
         document.getElementById('syncTimestamp').textContent = `Synced: ${new Date().toLocaleTimeString()}`;
       } catch (err) {
         console.error('Failed to fetch incidents:', err);
+        showToast(`Could not load the dispatch board: ${err.message}`, 'error');
       }
     }
 
@@ -2116,6 +2288,8 @@
         const res = await api(`/incidents/${incidentId}`);
         const inc = res.data;
         currentModalIncident = inc;
+        const canManage = hasCoordinatorAccess();
+        document.getElementById('modalVolunteerSection').classList.toggle('hidden', !canManage);
 
         document.getElementById('modalId').textContent = inc.ref;
         document.getElementById('modalTitle').textContent = inc.aiTriage?.incidentTitle || inc.category || 'Emergency Incident';
@@ -2162,7 +2336,7 @@
         }
 
         renderStatusButtons(inc.status);
-        populateVolunteerDropdown();
+        if (canManage) populateVolunteerDropdown();
         document.getElementById('taskModal').classList.remove('hidden');
 
       } catch (err) {
@@ -2191,7 +2365,9 @@
 
     function renderStatusButtons(status) {
       const container = document.getElementById('modalStatusButtons');
+      container.parentElement.classList.toggle('hidden', !hasCoordinatorAccess());
       container.innerHTML = '';
+      if (!hasCoordinatorAccess()) return;
 
       const transitions = {
         submitted: ['under_review', 'cancelled'],
@@ -2243,17 +2419,19 @@
           const res = await api('/volunteers?limit=50');
           volunteersList = res.data || [];
         }
-        volunteersList.filter(v => v.profile?.availability === 'available').forEach(v => {
+        volunteersList.filter(v => v.isActive !== false && v.profile?.availability === 'available').forEach(v => {
           const opt = document.createElement('option');
           opt.value = v._id;
           opt.textContent = `${v.displayName} (${v.profile?.serviceArea || 'Vizag'})`;
           select.appendChild(opt);
         });
-      } catch (e) {}
+      } catch (err) {
+        showToast(`Could not load available volunteers: ${err.message}`, 'error');
+      }
     }
 
     async function assignVolunteerToCurrentIncident() {
-      if (!currentModalIncident) return;
+      if (!currentModalIncident || !hasCoordinatorAccess()) return;
       const select = document.getElementById('modalVolunteerSelect');
       const volId = select.value;
       if (!volId) {
@@ -2266,6 +2444,7 @@
           coordinatorNote: "Assigned via Central Dispatch Board"
         });
         showToast('Volunteer successfully assigned!', 'success');
+        volunteersList = [];
         openTaskModal(currentModalIncident._id);
         fetchIncidents();
       } catch (err) {
@@ -2291,11 +2470,15 @@
     async function fetchVolunteers() {
       const grid = document.getElementById('volunteersGrid');
       grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>Loading volunteers...</div>';
+      const canManage = hasCoordinatorAccess();
+      document.getElementById('volunteerAdminControls').classList.toggle('hidden', !canManage);
+      if (!canManage) toggleAddVolunteerForm(false);
 
       try {
         const filter = document.getElementById('volAvailabilityFilter')?.value;
         let query = `/volunteers?limit=50`;
         if (filter) query += `&availability=${filter}`;
+        if (canManage && document.getElementById('showInactiveVolunteers').checked) query += '&includeInactive=true';
 
         const res = await api(query);
         volunteersList = res.data || [];
@@ -2308,6 +2491,9 @@
         grid.innerHTML = '';
         volunteersList.forEach(v => {
           const avail = v.profile?.availability || 'available';
+          const isActive = v.isActive !== false;
+          const volunteerId = String(v._id || v.id || '');
+          const isSelf = currentUser?.role === 'volunteer' && String(currentUser.id || currentUser._id) === volunteerId;
           const availClasses = {
             available: 'bg-emerald-100 text-emerald-800 border-emerald-300',
             assigned: 'bg-amber-100 text-amber-800 border-amber-300',
@@ -2315,9 +2501,22 @@
             'off-duty': 'bg-slate-100 text-slate-700 border-slate-300'
           };
           const cls = availClasses[avail] || 'bg-slate-100 text-slate-700';
+          const availabilityControl = isActive && (canManage || isSelf)
+            ? `<select onchange="changeVolunteerStatus('${volunteerId}', this.value)" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none">
+                <option value="available" ${avail === 'available' ? 'selected' : ''}>Available</option>
+                <option value="assigned" ${avail === 'assigned' ? 'selected' : ''}>Assigned</option>
+                <option value="unavailable" ${avail === 'unavailable' ? 'selected' : ''}>Unavailable</option>
+                <option value="off-duty" ${avail === 'off-duty' ? 'selected' : ''}>Off-Duty</option>
+              </select>`
+            : `<span class="text-xs text-slate-500">${escapeHtml(avail)}</span>`;
+          const managementAction = canManage
+            ? isActive
+              ? `<button onclick="deactivateVolunteer('${volunteerId}')" class="text-xs text-red-700 hover:text-red-900 font-semibold">Deactivate</button>`
+              : `<button onclick="reactivateVolunteer('${volunteerId}')" class="text-xs text-emerald-700 hover:text-emerald-900 font-semibold">Reactivate</button>`
+            : '';
 
           const card = document.createElement('div');
-          card.className = 'bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4';
+          card.className = `bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4${isActive ? '' : ' opacity-70'}`;
           card.innerHTML = `
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2.5">
@@ -2329,33 +2528,30 @@
                   <p class="text-xs text-slate-500">${escapeHtml(v.profile?.teamAffiliation || 'Volunteer Cell')}</p>
                 </div>
               </div>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${cls}">${avail}</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${isActive ? cls : 'bg-slate-100 text-slate-600 border-slate-300'}">${isActive ? escapeHtml(avail) : 'inactive'}</span>
             </div>
 
             <div class="text-xs text-slate-600 space-y-1">
               <div><strong>Sector:</strong> ${escapeHtml(v.profile?.serviceArea || 'Visakhapatnam')}</div>
-              <div><strong>Skills:</strong> ${(v.profile?.skills || ['Rescue', 'First Aid']).join(', ')}</div>
+              <div><strong>Skills:</strong> ${escapeHtml((v.profile?.skills || ['Rescue', 'First Aid']).join(', '))}</div>
             </div>
 
             <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-              <span class="text-slate-400 font-mono text-[10px]">ID: ${v._id.slice(-6)}</span>
-              <select onchange="changeVolunteerStatus('${v._id}', this.value)" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none">
-                <option value="available" ${avail==='available'?'selected':''}>Available</option>
-                <option value="assigned" ${avail==='assigned'?'selected':''}>Assigned</option>
-                <option value="unavailable" ${avail==='unavailable'?'selected':''}>Unavailable</option>
-                <option value="off-duty" ${avail==='off-duty'?'selected':''}>Off-Duty</option>
-              </select>
+              <span class="text-slate-400 font-mono text-[10px]">ID: ${escapeHtml(volunteerId.slice(-6))}</span>
+              ${availabilityControl}
+              ${managementAction}
             </div>
           `;
           grid.appendChild(card);
         });
 
       } catch (err) {
-        grid.innerHTML = `<div class="col-span-full py-12 text-center text-red-500">Could not load volunteers: ${err.message}</div>`;
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-red-500">Could not load volunteers: ${escapeHtml(err.message)}</div>`;
       }
     }
 
     async function changeVolunteerStatus(volId, newStatus) {
+      if (!hasCoordinatorAccess() && !(currentUser?.role === 'volunteer' && String(currentUser.id || currentUser._id) === String(volId))) return;
       try {
         await api(`/volunteers/${volId}/availability`, 'PATCH', { availability: newStatus });
         showToast('Volunteer status updated.', 'success');
@@ -2605,6 +2801,21 @@
           fetchIncidents();
         });
 
+        sseSource.addEventListener('assignment:updated', () => {
+          fetchIncidents();
+          if (!document.getElementById('screen-volunteers').classList.contains('hidden')) {
+            fetchVolunteers();
+          }
+        });
+
+        ['volunteer:created', 'volunteer:deactivated', 'volunteer:reactivated'].forEach(eventName => {
+          sseSource.addEventListener(eventName, () => {
+            if (!document.getElementById('screen-volunteers').classList.contains('hidden')) {
+              fetchVolunteers();
+            }
+          });
+        });
+
         sseSource.onerror = () => {
           setModeBanner(false);
         };
@@ -2686,7 +2897,7 @@
 
     // Startup initialization
     window.addEventListener('DOMContentLoaded', async () => {
-      initAuth();
+      await initAuth();
       loadDraft();
       initSSE();
       await fetchIncidents();
