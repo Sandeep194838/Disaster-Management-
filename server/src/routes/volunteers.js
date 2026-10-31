@@ -40,13 +40,13 @@ const progressSchema = Joi.object({
 });
 
 // ============================================================================
-// POST /api/volunteers/claim/:incidentId — volunteer claims an unassigned task
+// POST /api/volunteers/claim/:incidentId — personnel claims an unassigned task
 // ============================================================================
-router.post('/claim/:incidentId', authenticate, authorize('volunteer'), asyncHandler(async (req, res) => {
+router.post('/claim/:incidentId', authenticate, authorize('admin', 'coordinator', 'volunteer'), asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.incidentId)) throw createError('Incident not found.', 404);
 
   const volunteer = await User.findOneAndUpdate(
-    { _id: req.user._id, role: 'volunteer', isActive: true, 'profile.availability': 'available' },
+    { _id: req.user._id, role: req.user.role, isActive: true, 'profile.availability': 'available' },
     { $set: { 'profile.availability': 'assigned' } },
     { new: true }
   );
@@ -73,7 +73,7 @@ router.post('/claim/:incidentId', authenticate, authorize('volunteer'), asyncHan
             status: 'assigned',
             changedBy: volunteer._id,
             changedByName: volunteer.displayName,
-            note: `Claimed by volunteer ${volunteer.displayName}`,
+            note: `Claimed by ${volunteer.role} ${volunteer.displayName}`,
             timestamp: new Date(),
           },
         },
@@ -450,7 +450,7 @@ router.patch('/assignments/:assignmentId', authenticate, asyncHandler(async (req
     });
     if (!activeAssignment) {
       await User.updateOne(
-        { _id: assignment.volunteer, role: 'volunteer', isActive: true },
+        { _id: assignment.volunteer, role: { $in: ['admin', 'coordinator', 'volunteer'] }, isActive: true },
         { $set: { 'profile.availability': 'available' } }
       );
     }

@@ -15,7 +15,7 @@ const availableStockExpression = {
   $subtract: ['$quantityTotal', { $add: ['$quantityReserved', '$quantityDispatched'] }],
 };
 
-router.use(authenticate, authorize('admin', 'analyst'));
+router.use(authenticate, authorize('admin'));
 
 // ============================================================================
 // GET /api/analytics/summary — dashboard KPIs

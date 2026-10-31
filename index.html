@@ -36,9 +36,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-
   <style>
+    html { overflow-x: hidden; }
     .urgent-pulse {
       animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
@@ -56,9 +55,15 @@
       background-color: #FFEDD5;
     }
     #miniMap { height: 180px; width: 100%; border-radius: 0.75rem; }
+    @keyframes siren-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, .55), 0 12px 30px rgba(127, 29, 29, .28); }
+      50% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0), 0 12px 34px rgba(127, 29, 29, .38); }
+    }
+    .siren-pulse { animation: siren-pulse 1.4s ease-out infinite; }
+    @media (prefers-reduced-motion: reduce) { .siren-pulse, .urgent-pulse { animation: none; } }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-orange-500 selection:text-white">
+<body class="overflow-x-hidden bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-orange-500 selection:text-white">
 
   <!-- STANDALONE / OFFLINE MODE BANNER -->
   <div id="modeBanner" class="bg-slate-800 text-slate-200 text-xs py-1.5 px-4 text-center border-b border-slate-700 flex items-center justify-center gap-2">
@@ -126,9 +131,6 @@
         <button onclick="navigate('resources')" id="nav-resources" class="hidden nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
           <i class="fa-solid fa-boxes-stacked mr-1.5 text-amber-600"></i><span data-i18n="nav_resources">Relief Inventory</span>
         </button>
-        <button onclick="navigate('analytics')" id="nav-analytics" class="hidden nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
-          <i class="fa-solid fa-chart-pie mr-1.5 text-purple-600"></i><span data-i18n="nav_analytics">Analytics</span>
-        </button>
         <button onclick="navigate('settings')" id="nav-settings" class="hidden nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
           <i class="fa-solid fa-gear mr-1.5 text-slate-500"></i><span>System Settings</span>
         </button>
@@ -167,9 +169,6 @@
       </button>
       <button onclick="navigate('resources'); closeMobileNav()" id="mobile-nav-resources" class="hidden w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
         <i class="fa-solid fa-boxes-stacked w-6 text-amber-600"></i><span data-i18n="nav_resources">Relief Inventory</span>
-      </button>
-      <button onclick="navigate('analytics'); closeMobileNav()" id="mobile-nav-analytics" class="hidden w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
-        <i class="fa-solid fa-chart-pie w-6 text-purple-600"></i><span data-i18n="nav_analytics">Analytics</span>
       </button>
       <button onclick="navigate('settings'); closeMobileNav()" id="mobile-nav-settings" class="hidden w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
       <i class="fa-solid fa-gear w-6 text-slate-500"></i><span>System Settings</span>
@@ -220,29 +219,29 @@
         </div>
       </div>
 
-      <div class="rounded-3xl bg-slate-900 text-white p-5 sm:p-7">
-        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
-          <div>
-            <p class="text-xs uppercase tracking-wider font-bold text-orange-300">Registered Personnel</p>
-            <h2 class="text-xl sm:text-2xl font-black mt-1">Demo Quick Access <span class="text-orange-300">(One-Click)</span></h2>
-          </div>
-          <p class="text-xs text-slate-300">Choose a role to preview its live workspace.</p>
+      <section class="rounded-3xl bg-rose-950 text-white p-5 sm:p-7 border border-rose-900 shadow-lg">
+        <h2 class="text-lg sm:text-xl font-black">Battery Dying? Immediate Phone Helplines</h2>
+        <p class="mt-1 text-xs sm:text-sm text-rose-100">Tap any number to call rescue teams directly.</p>
+        <div class="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <a href="tel:112" class="min-h-12 rounded-xl bg-red-600 hover:bg-red-500 px-3 py-3 text-center text-sm font-black text-white flex items-center justify-center gap-2"><span>🚨</span><span>112 <span class="block text-[10px] font-semibold">National Emergency</span></span></a>
+          <a href="tel:1077" class="min-h-12 rounded-xl bg-slate-100 hover:bg-white px-3 py-3 text-center text-sm font-black text-rose-950 flex items-center justify-center gap-2"><span>⚠️</span><span>1077 <span class="block text-[10px] font-semibold">District Disaster Cell</span></span></a>
+          <a href="tel:108" class="min-h-12 rounded-xl bg-slate-100 hover:bg-white px-3 py-3 text-center text-sm font-black text-rose-950 flex items-center justify-center gap-2"><span>🏥</span><span>108 <span class="block text-[10px] font-semibold">Emergency Ambulance</span></span></a>
+          <a href="tel:08912564891" class="min-h-12 rounded-xl bg-slate-100 hover:bg-white px-3 py-3 text-center text-sm font-black text-rose-950 flex items-center justify-center gap-2"><span>🏥</span><span>0891-2564891 <span class="block text-[10px] font-semibold">KGH Vizag</span></span></a>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          <button onclick="quickLogin('coordinator','Coord@2024!')" class="rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 p-3 text-left">
-            <span class="block font-bold text-orange-200">Coordinator</span><span class="block text-xs text-slate-300 mt-1">coordinator / Coord@2024!</span>
-          </button>
-          <button onclick="quickLogin('admin','Admin@2024!')" class="rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 p-3 text-left">
-            <span class="block font-bold text-red-200">Administrator</span><span class="block text-xs text-slate-300 mt-1">admin / Admin@2024!</span>
-          </button>
-          <button onclick="quickLogin('kiran_nss','Demo@2024!')" class="rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 p-3 text-left">
-            <span class="block font-bold text-emerald-200">Volunteer</span><span class="block text-xs text-slate-300 mt-1">kiran_nss / Demo@2024!</span>
-          </button>
-          <button onclick="quickLogin('analyst','Analyst@2024!')" class="rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 p-3 text-left">
-            <span class="block font-bold text-purple-200">Analyst</span><span class="block text-xs text-slate-300 mt-1">analyst / Analyst@2024!</span>
-          </button>
+      </section>
+
+      <section class="rounded-3xl bg-white border border-slate-200 shadow-sm p-5 sm:p-7">
+        <div class="max-w-3xl mx-auto">
+          <h2 class="text-xl font-black text-slate-900"><i class="fa-solid fa-magnifying-glass-location text-orange-600 mr-2"></i>Track SOS Status</h2>
+          <p class="mt-1 text-sm text-slate-600">Enter your incident reference to check the latest response status.</p>
+          <form onsubmit="trackIncident(event)" class="mt-4 flex flex-col sm:flex-row gap-2">
+            <label for="ticketTrackerInput" class="sr-only">Incident ID</label>
+            <input id="ticketTrackerInput" type="text" autocomplete="off" placeholder="Enter your Incident ID (e.g., INC-MVWSBVGL-1C7B239A)..." class="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3 text-sm font-mono focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100" required>
+            <button type="submit" class="min-h-12 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800">Track ticket</button>
+          </form>
+          <div id="ticketTrackerResult" class="hidden mt-4" aria-live="polite"></div>
         </div>
-      </div>
+      </section>
 
       <!-- Hero -->
       <div class="hidden relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white p-6 sm:p-12 lg:p-16 shadow-2xl border border-slate-700">
@@ -778,9 +777,28 @@
         </div>
       </div>
 
+      <!-- View selector -->
+      <div class="flex items-center justify-between gap-3">
+        <p class="text-xs font-semibold text-slate-500">Choose how to view tickets</p>
+        <div class="inline-flex rounded-xl border border-slate-300 bg-white p-1 shadow-sm" role="group" aria-label="Ticket view">
+          <button id="incidentGridViewButton" type="button" onclick="setIncidentView('grid')" aria-pressed="true" class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white"><i class="fa-solid fa-grip mr-1"></i>Grid</button>
+          <button id="incidentListViewButton" type="button" onclick="setIncidentView('list')" aria-pressed="false" class="rounded-lg px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100"><i class="fa-solid fa-list mr-1"></i>List</button>
+        </div>
+      </div>
+
       <!-- Incidents Cards Grid -->
       <div id="ticketsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <!-- Rendered by JS -->
+      </div>
+      <div id="ticketsListView" class="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table class="w-full min-w-[760px] text-left text-xs">
+          <thead class="bg-slate-100 text-slate-600 uppercase tracking-wide">
+            <tr>
+              <th class="px-3 py-3">Incident ID</th><th class="px-3 py-3">Urgency</th><th class="px-3 py-3">Summary</th><th class="px-3 py-3">Location</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Action</th>
+            </tr>
+          </thead>
+          <tbody id="ticketsListBody" class="divide-y divide-slate-100"></tbody>
+        </table>
       </div>
 
       <!-- Empty State -->
@@ -1112,6 +1130,35 @@
 
   </main>
 
+  <button id="sirenFab" type="button" onclick="openSirenModal()" class="siren-pulse fixed bottom-5 right-5 z-50 flex min-h-14 items-center gap-2 rounded-full bg-red-700 px-5 py-3 text-sm font-black text-white shadow-xl ring-2 ring-white focus:outline-none focus:ring-4 focus:ring-red-300" aria-label="Open emergency siren and SOS actions">
+    <i class="fa-solid fa-shield-halved text-lg" aria-hidden="true"></i><span>🚨 SOS SIREN</span>
+  </button>
+
+  <div id="sirenModal" class="hidden fixed inset-0 z-[70] overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="sirenModalTitle">
+    <div class="w-full max-w-md rounded-3xl border border-red-200 bg-white p-5 shadow-2xl sm:p-7">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="text-xs font-black uppercase tracking-widest text-red-700">Emergency SOS</p>
+          <h2 id="sirenModalTitle" class="mt-1 text-xl font-black text-slate-950">Need immediate help?</h2>
+        </div>
+        <button type="button" onclick="closeSirenModal()" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Close emergency actions"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <p class="mt-3 text-sm text-slate-600">The nearby siren is active. Stop it anytime. If this is a mistake, cancel before the countdown ends.</p>
+      <button id="sirenMuteButton" type="button" onclick="toggleSiren()" class="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800"><i class="fa-solid fa-volume-xmark mr-2"></i>Mute siren</button>
+      <div id="panicCountdownPanel" class="mt-4 rounded-2xl bg-slate-900 p-4 text-center text-white">
+        <p class="text-xs font-bold uppercase tracking-wide text-orange-200">Automatic SOS alert in</p>
+        <p id="panicCountdown" class="my-1 text-4xl font-black tabular-nums">5</p>
+        <p id="panicStatus" class="text-xs text-slate-300">Cancel if you do not need emergency dispatch.</p>
+        <button id="panicSendButton" type="button" onclick="sendPanicSOS()" class="mt-3 min-h-11 w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-black text-white hover:bg-red-500">Send Immediate One-Tap Panic Alert</button>
+        <button id="panicCancelButton" type="button" onclick="cancelPanicAlert()" class="mt-3 min-h-11 w-full rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20">Cancel SOS countdown</button>
+      </div>
+      <div class="my-4 flex items-center gap-3 text-xs font-bold uppercase tracking-wide text-slate-400"><span class="h-px flex-1 bg-slate-200"></span>Or record voice SOS<span class="h-px flex-1 bg-slate-200"></span></div>
+      <button id="recordVoiceButton" type="button" onclick="startVoiceSOS()" class="min-h-12 w-full rounded-xl bg-orange-600 px-4 py-3 text-sm font-black text-white hover:bg-orange-700"><i class="fa-solid fa-microphone mr-2"></i>Press to Record Voice SOS</button>
+      <p id="voiceRecordingStatus" class="mt-2 min-h-5 text-center text-xs text-slate-600" aria-live="polite">Up to 10 seconds. Your browser may ask for microphone permission.</p>
+      <p class="mt-3 text-center text-[11px] text-slate-500">A panic alert sends your GPS location when available. Voice is sent as text when transcription is supported; audio stays on this device. This cannot call emergency services; tap a helpline to call 112.</p>
+    </div>
+  </div>
+
   <!-- ============================================== -->
   <!-- MODAL: INCIDENT DETAIL, DISPATCH & AUDIT       -->
   <!-- ============================================== -->
@@ -1253,7 +1300,7 @@
       </div>
 
       <form id="registerForm" onsubmit="handleRegisterSubmit(event)" class="hidden space-y-3">
-        <p class="text-xs text-slate-600">Create a volunteer account. Coordinator, analyst, and administrator access cannot be self-registered.</p>
+        <p class="text-xs text-slate-600">Create a volunteer account. Coordinator and administrator access cannot be self-registered.</p>
         <label class="block text-xs font-bold text-slate-700">Display name
           <input type="text" id="registerDisplayName" required minlength="2" maxlength="100" autocomplete="name" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 outline-none focus:border-orange-500">
         </label>
@@ -1289,17 +1336,13 @@
             <span class="block text-orange-600 font-bold">Volunteer</span>
             <span class="text-[10px] text-slate-500">kiran_nss / Demo@2024!</span>
           </button>
-          <button onclick="quickLogin('analyst', 'Analyst@2024!')" class="text-xs bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700 font-semibold p-2 rounded-xl border border-slate-200 transition text-left">
-            <span class="block text-orange-600 font-bold">Analyst</span>
-            <span class="text-[10px] text-slate-500">analyst / Analyst@2024!</span>
-          </button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- TOAST NOTIFICATION CONTAINER -->
-  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm border border-slate-700 transition-all duration-300">
+  <div id="toast" class="fixed bottom-24 right-5 z-[60] hidden max-w-[calc(100vw-2.5rem)] bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm border border-slate-700 transition-all duration-300">
     <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
     <span id="toastMessage" class="font-semibold">Action completed.</span>
   </div>
@@ -1343,11 +1386,23 @@
     let capturedCoordinates = null;
     let leafletMapInstance = null;
     let speechRecognition = null;
-
-    // Chart.js references
-    let urgencyChartInstance = null;
-    let categoryChartInstance = null;
-    let trendChartInstance = null;
+    let sirenAudioContext = null;
+    let sirenOscillator = null;
+    let sirenModulator = null;
+    let sirenGain = null;
+    let sirenActive = false;
+    let panicCountdownInterval = null;
+    let pendingGpsRequest = null;
+    let panicAlertSending = false;
+    let panicAlertCreated = false;
+    let voiceRecorder = null;
+    let voiceMediaStream = null;
+    let voiceChunks = [];
+    let voiceTranscript = '';
+    let voiceRecognition = null;
+    let voiceRecordingTimer = null;
+    let discardVoiceRecording = false;
+    let trackedAudioUrl = null;
 
     // --- 2. LOCAL STANDALONE DATA STORE (USED WHEN SERVER IS OFFLINE) ---
     const SEED_INCIDENTS = [
@@ -1709,7 +1764,15 @@
 
       // Auth me
       if (endpoint === '/auth/me') {
-        const u = currentUser || { displayName: "Demo Coordinator", role: "coordinator", username: "coordinator" };
+        const savedUser = JSON.parse(localStorage.getItem('sahyog_local_user') || 'null');
+        const u = currentUser || savedUser || {
+          _id: 'local-demo-coordinator',
+          displayName: "Demo Coordinator",
+          role: "coordinator",
+          username: "coordinator",
+          profile: { availability: 'available' },
+        };
+        currentUser = u;
         return { success: true, user: u };
       }
 
@@ -1717,9 +1780,17 @@
       if (endpoint === '/auth/login') {
         const username = String(body.username || '').trim().toLowerCase();
         const volunteer = db.volunteers.find(item => item.username === username);
-        const role = username === 'admin' ? 'admin' : (username === 'analyst' ? 'analyst' : (volunteer ? 'volunteer' : 'coordinator'));
+        const role = username === 'admin' ? 'admin' : (username === 'coordinator' ? 'coordinator' : (volunteer ? 'volunteer' : null));
+        if (!role) throw new Error('Invalid username or password.');
         const displayName = volunteer?.displayName || (username.charAt(0).toUpperCase() + username.slice(1));
-        const u = { displayName: displayName, role: role, username: body.username };
+        const u = {
+          _id: volunteer?._id || `local-${username}`,
+          displayName,
+          role,
+          username,
+          profile: volunteer?.profile || { availability: 'available' },
+        };
+        localStorage.setItem('sahyog_local_user', JSON.stringify(u));
         return { success: true, token: 'mock-local-token', user: u };
       }
 
@@ -1730,7 +1801,7 @@
         if (displayName.length < 2 || displayName.length > 100) throw new Error('Display name must be between 2 and 100 characters.');
         if (!/^[a-z0-9_.-]{3,50}$/.test(username)) throw new Error('Username must be 3-50 characters using letters, numbers, dots, underscores, or hyphens.');
         if (String(body.password || '').length < 8 || String(body.password).length > 128) throw new Error('Password must be between 8 and 128 characters.');
-        if (['admin', 'analyst', 'coordinator'].includes(username) || db.volunteers.some(item => item.username === username)) {
+        if (['admin', 'coordinator'].includes(username) || db.volunteers.some(item => item.username === username)) {
           throw new Error('Username already taken.');
         }
 
@@ -1745,6 +1816,7 @@
         };
         db.volunteers.push(user);
         saveLocalDB(db);
+        localStorage.setItem('sahyog_local_user', JSON.stringify(user));
         return { success: true, token: 'mock-local-token', user };
       }
 
@@ -1754,6 +1826,37 @@
       }
 
       // Incidents list
+      if (endpoint.startsWith('/incidents/track/') && method === 'GET') {
+        const ref = decodeURIComponent(endpoint.split('/')[3] || '').split('?')[0].trim().toUpperCase();
+        const incident = db.incidents.find(item => String(item.ref).toUpperCase() === ref);
+        if (!incident) throw new Error('No ticket found for that incident ID.');
+        return { success: true, data: formatTrackedIncident(incident) };
+      }
+
+      if (endpoint === '/incidents/panic' && method === 'POST') {
+        const newRef = `INC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+        const newIncident = {
+          _id: `inc-${Date.now()}`,
+          ref: newRef,
+          locationDescription: body.locationDescription || 'Visakhapatnam (GPS location unavailable)',
+          originalReport: body.originalReport || 'Critical Rescue SOS: Immediate assistance requested through the panic alert.',
+          reportedCategory: 'Rescue Assistance',
+          category: 'Rescue Assistance',
+          effectiveUrgency: 'Critical',
+          status: 'awaiting_assignment',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isDemo: false,
+          coordinates: body.coordinates || null,
+          assignments: [],
+          aiTriage: { source: 'fallback', incidentTitle: 'Critical Rescue SOS', summary: 'A one-tap emergency alert needs immediate dispatcher review.', immediateNeeds: ['Emergency assessment', 'Rescue response'] },
+        };
+        db.incidents.unshift(newIncident);
+        db.audit.unshift({ createdAt: newIncident.createdAt, actorName: currentUser?.displayName || 'Public Citizen', action: 'incident:panic_created', entityRef: newRef });
+        saveLocalDB(db);
+        return { success: true, data: newIncident };
+      }
+
       if (endpoint.split('?')[0] === '/incidents' && method === 'GET') {
         let list = [...db.incidents];
         const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
@@ -1841,7 +1944,7 @@
       // Single incident
       if (endpoint.startsWith('/incidents/') && method === 'GET') {
         const incId = endpoint.split('/')[2];
-        const inc = db.incidents.find(i => i._id === incId);
+        const inc = db.incidents.find(i => i._id === incId || String(i.ref).toUpperCase() === incId.toUpperCase());
         if (!inc) throw new Error("Incident not found");
         return { success: true, data: inc };
       }
@@ -1859,6 +1962,65 @@
       }
 
       // Volunteers
+      if (endpoint.startsWith('/volunteers/claim/') && method === 'POST') {
+        const incidentId = endpoint.split('/')[3];
+        const incident = db.incidents.find(item => item._id === incidentId);
+        if (!incident) throw new Error('Incident not found.');
+        if (!['admin', 'coordinator', 'volunteer'].includes(currentUser?.role)) {
+          throw new Error('Access denied. Sign in as authorized personnel to claim this task.');
+        }
+        if (!['verified', 'awaiting_assignment'].includes(incident.status) || (incident.assignments || []).length) {
+          throw new Error('This task is no longer available to claim.');
+        }
+        currentUser.profile = currentUser.profile || {};
+        if (currentUser.profile.availability && currentUser.profile.availability !== 'available') {
+          throw new Error('You are not available to claim another task.');
+        }
+        const assignment = {
+          _id: `assignment-${Date.now()}`,
+          volunteer: currentUser._id || currentUser.id,
+          volunteerId: currentUser._id || currentUser.id,
+          volunteerName: currentUser.displayName,
+          status: 'sent',
+        };
+        incident.assignments = [assignment];
+        incident.status = 'assigned';
+        incident.updatedAt = new Date().toISOString();
+        currentUser.profile.availability = 'assigned';
+        localStorage.setItem('sahyog_local_user', JSON.stringify(currentUser));
+        const localVolunteer = db.volunteers.find(item => item._id === assignment.volunteer);
+        if (localVolunteer) localVolunteer.profile.availability = 'assigned';
+        db.audit.unshift({ createdAt: incident.updatedAt, actorName: currentUser.displayName, action: 'assignment:claimed', entityRef: incident.ref });
+        saveLocalDB(db);
+        return { success: true, data: assignment };
+      }
+
+      if (endpoint.startsWith('/volunteers/assignments/') && method === 'PATCH') {
+        const assignmentId = endpoint.split('/')[3];
+        const incident = db.incidents.find(item => (item.assignments || []).some(assignment => assignment._id === assignmentId));
+        const assignment = incident?.assignments.find(item => item._id === assignmentId);
+        if (!incident || !assignment) throw new Error('Assignment not found.');
+        const hasDispatchAccess = ['admin', 'coordinator', 'volunteer'].includes(currentUser?.role);
+        const isOwner = String(assignment.volunteer || assignment.volunteerId) === String(currentUser?._id || currentUser?.id);
+        if (!hasDispatchAccess || (currentUser.role === 'volunteer' && !isOwner)) {
+          throw new Error('You cannot update this assignment.');
+        }
+        assignment.status = body.status;
+        const nextStatus = { acknowledged: 'acknowledged', in_progress: 'in_progress', completed: 'assistance_delivered' }[body.status];
+        if (nextStatus) incident.status = nextStatus;
+        incident.updatedAt = new Date().toISOString();
+        if (body.status === 'completed') {
+          currentUser.profile = currentUser.profile || {};
+          currentUser.profile.availability = 'available';
+          localStorage.setItem('sahyog_local_user', JSON.stringify(currentUser));
+          const localVolunteer = db.volunteers.find(item => item._id === assignment.volunteer);
+          if (localVolunteer) localVolunteer.profile.availability = 'available';
+        }
+        db.audit.unshift({ createdAt: incident.updatedAt, actorName: currentUser?.displayName || 'Personnel', action: `assignment:${body.status}`, entityRef: incident.ref });
+        saveLocalDB(db);
+        return { success: true, data: assignment };
+      }
+
       if (endpoint.startsWith('/volunteers') && method === 'GET') {
         const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
         const includeInactive = urlParams.get('includeInactive') === 'true';
@@ -2146,10 +2308,9 @@
 
     // --- 6. NAVIGATION CONTROLLER ---
     function allowedScreensForUser(user = currentUser) {
-      if (user?.role === 'admin') return ['home', 'action', 'result', 'volunteers', 'resources', 'analytics', 'settings'];
+      if (user?.role === 'admin') return ['home', 'action', 'result', 'volunteers', 'resources', 'settings'];
       if (user?.role === 'coordinator') return ['home', 'action', 'result', 'resources'];
       if (user?.role === 'volunteer') return ['home', 'action', 'result'];
-      if (user?.role === 'analyst') return ['home', 'analytics'];
       return ['home', 'action'];
     }
 
@@ -2160,7 +2321,6 @@
         result: ['nav-result', 'mobile-nav-result'],
         volunteers: ['nav-volunteers', 'mobile-nav-volunteers'],
         resources: ['nav-resources', 'mobile-nav-resources'],
-        analytics: ['nav-analytics', 'mobile-nav-analytics'],
         settings: ['nav-settings', 'mobile-nav-settings'],
       };
       Object.entries(roleNav).forEach(([screen, ids]) => {
@@ -2176,7 +2336,7 @@
       document.getElementById('mobileNavVolunteersLabel').textContent = isAdmin ? 'User Management' : 'Volunteers';
       document.getElementById('volunteersPageTitle').textContent = isAdmin ? 'User Management' : 'Volunteer Response Cells';
 
-      const currentScreen = ['home', 'action', 'result', 'volunteers', 'resources', 'analytics', 'settings']
+      const currentScreen = ['home', 'action', 'result', 'volunteers', 'resources', 'settings']
         .find(screen => !document.getElementById(`screen-${screen}`)?.classList.contains('hidden'));
       if (currentScreen && !allowed.has(currentScreen)) navigate('home');
     }
@@ -2187,7 +2347,7 @@
         screenName = 'home';
       }
 
-      ['home', 'action', 'result', 'volunteers', 'resources', 'analytics', 'settings'].forEach(s => {
+      ['home', 'action', 'result', 'volunteers', 'resources', 'settings'].forEach(s => {
         const el = document.getElementById(`screen-${s}`);
         const navEl = document.getElementById(`nav-${s}`);
         if (el) el.classList.add('hidden');
@@ -2205,7 +2365,6 @@
       if (screenName === 'result') fetchIncidents();
       if (screenName === 'volunteers') fetchVolunteers();
       if (screenName === 'resources') fetchResources();
-      if (screenName === 'analytics') loadAnalytics();
       if (screenName === 'settings') loadSystemSettings();
     }
 
@@ -2213,6 +2372,469 @@
       navigate('action');
       selectCategory(category);
       setTimeout(() => document.getElementById('locationInput')?.focus(), 150);
+    }
+
+    function openSirenModal() {
+      document.getElementById('sirenModal').classList.remove('hidden');
+      document.getElementById('panicCountdownPanel').classList.remove('hidden');
+      document.getElementById('panicCountdown').textContent = '5';
+      document.getElementById('panicStatus').textContent = 'Cancel if you do not need emergency dispatch.';
+      document.getElementById('panicSendButton').disabled = false;
+      document.getElementById('panicSendButton').classList.remove('hidden');
+      document.getElementById('panicCancelButton').textContent = 'Cancel SOS countdown';
+      document.getElementById('panicCancelButton').onclick = cancelPanicAlert;
+      document.getElementById('panicCancelButton').onclick = cancelPanicAlert;
+      document.getElementById('recordVoiceButton').disabled = false;
+      document.getElementById('voiceRecordingStatus').textContent = 'Up to 10 seconds. Your browser may ask for microphone permission.';
+      panicAlertSending = false;
+      panicAlertCreated = false;
+      startSiren();
+      pendingGpsRequest = getCurrentCoordinates();
+
+      window.clearInterval(panicCountdownInterval);
+      let secondsRemaining = 5;
+      panicCountdownInterval = window.setInterval(() => {
+        secondsRemaining -= 1;
+        document.getElementById('panicCountdown').textContent = String(Math.max(0, secondsRemaining));
+        if (secondsRemaining <= 0) {
+          window.clearInterval(panicCountdownInterval);
+          panicCountdownInterval = null;
+          sendPanicSOS();
+        }
+      }, 1000);
+    }
+
+    function closeSirenModal() {
+      window.clearInterval(panicCountdownInterval);
+      panicCountdownInterval = null;
+      if (voiceRecorder && voiceRecorder.state !== 'inactive') {
+        discardVoiceRecording = true;
+        voiceRecorder.stop();
+      }
+      if (voiceRecognition) {
+        try { voiceRecognition.stop(); } catch (error) { console.warn('Could not stop voice recognition:', error.message); }
+      }
+      stopSiren();
+      document.getElementById('sirenModal').classList.add('hidden');
+    }
+
+    function startSiren() {
+      if (sirenActive) return;
+      const AudioContextType = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextType) {
+        showToast('This browser does not support the emergency siren sound.', 'error');
+        return;
+      }
+      try {
+        sirenAudioContext = new AudioContextType();
+        sirenOscillator = sirenAudioContext.createOscillator();
+        sirenModulator = sirenAudioContext.createOscillator();
+        sirenGain = sirenAudioContext.createGain();
+        const depth = sirenAudioContext.createGain();
+        sirenOscillator.type = 'sawtooth';
+        sirenOscillator.frequency.value = 760;
+        sirenModulator.type = 'sine';
+        sirenModulator.frequency.value = 0.8;
+        depth.gain.value = 360;
+        sirenGain.gain.value = 0.3;
+        sirenModulator.connect(depth);
+        depth.connect(sirenOscillator.frequency);
+        sirenOscillator.connect(sirenGain);
+        sirenGain.connect(sirenAudioContext.destination);
+        sirenOscillator.start();
+        sirenModulator.start();
+        sirenActive = true;
+        updateSirenButton();
+        sirenAudioContext.resume().catch(error => showToast(`Could not start siren audio: ${error.message}`, 'error'));
+      } catch (error) {
+        stopSiren();
+        showToast(`Could not start siren audio: ${error.message}`, 'error');
+      }
+    }
+
+    function stopSiren() {
+      const context = sirenAudioContext;
+      sirenActive = false;
+      if (sirenGain && context) {
+        try { sirenGain.gain.setValueAtTime(0, context.currentTime); } catch (error) { console.warn('Could not mute siren gain:', error.message); }
+      }
+      [sirenOscillator, sirenModulator].forEach(oscillator => {
+        if (!oscillator) return;
+        try { oscillator.stop(); } catch (error) { console.warn('Siren oscillator was already stopped:', error.message); }
+      });
+      sirenAudioContext = null;
+      sirenOscillator = null;
+      sirenModulator = null;
+      sirenGain = null;
+      if (context && context.state !== 'closed') {
+        context.close().catch(error => console.warn('Could not close siren audio context:', error.message));
+      }
+      updateSirenButton();
+    }
+
+    function toggleSiren() {
+      if (sirenActive) stopSiren();
+      else startSiren();
+    }
+
+    function updateSirenButton() {
+      const button = document.getElementById('sirenMuteButton');
+      if (!button) return;
+      button.innerHTML = sirenActive
+        ? '<i class="fa-solid fa-volume-xmark mr-2"></i>Mute siren'
+        : '<i class="fa-solid fa-volume-high mr-2"></i>Start siren';
+    }
+
+    function getCurrentCoordinates(timeout = 6000) {
+      if (!navigator.geolocation) return Promise.resolve(null);
+      return new Promise(resolve => {
+        navigator.geolocation.getCurrentPosition(
+          position => resolve({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            source: 'gps',
+          }),
+          () => resolve(null),
+          { enableHighAccuracy: false, maximumAge: 30000, timeout }
+        );
+      });
+    }
+
+    async function sendPanicSOS() {
+      if (panicAlertSending || panicAlertCreated) return;
+      panicAlertSending = true;
+      window.clearInterval(panicCountdownInterval);
+      panicCountdownInterval = null;
+      const status = document.getElementById('panicStatus');
+      const sendButton = document.getElementById('panicSendButton');
+      sendButton.disabled = true;
+      status.textContent = 'Sending your emergency alert and checking GPS…';
+      try {
+        const coordinates = await (pendingGpsRequest || getCurrentCoordinates(2500));
+        pendingGpsRequest = null;
+        const locationDescription = coordinates
+          ? `GPS coordinates ${coordinates.lat.toFixed(5)}, ${coordinates.lng.toFixed(5)}`
+          : 'Visakhapatnam (GPS location unavailable)';
+        const response = await api('/incidents/panic', 'POST', {
+          originalReport: 'Critical Rescue SOS: Immediate assistance requested through one-tap panic alert.',
+          locationDescription,
+          ...(coordinates && { coordinates }),
+        });
+        panicAlertCreated = true;
+        status.textContent = `SOS sent. Ticket ${response.data.ref} is awaiting dispatch.`;
+        sendButton.classList.add('hidden');
+        document.getElementById('panicCancelButton').textContent = 'Close SOS panel';
+        document.getElementById('ticketTrackerInput').value = response.data.ref;
+        displayTrackedIncident(formatTrackedIncident(response.data));
+        showToast(`Critical SOS sent: ${response.data.ref}`, 'success');
+        if (canAccessDispatch()) fetchIncidents();
+      } catch (error) {
+        panicAlertSending = false;
+        sendButton.disabled = false;
+        status.textContent = `SOS could not be sent: ${error.message}. Try again or call 112.`;
+        showToast(`SOS could not be sent: ${error.message}`, 'error');
+      }
+    }
+
+    function cancelPanicAlert() {
+      if (panicAlertCreated) {
+        closeSirenModal();
+        return;
+      }
+      window.clearInterval(panicCountdownInterval);
+      panicCountdownInterval = null;
+      pendingGpsRequest = null;
+      stopSiren();
+      document.getElementById('panicStatus').textContent = 'Countdown cancelled. You can still send an alert or record a voice SOS.';
+      document.getElementById('panicCancelButton').textContent = 'Close SOS panel';
+      document.getElementById('panicCancelButton').onclick = closeSirenModal;
+      document.getElementById('panicSendButton').disabled = false;
+    }
+
+    async function startVoiceSOS() {
+      if (voiceRecorder && voiceRecorder.state !== 'inactive') {
+        stopVoiceSOS(false);
+        return;
+      }
+      window.clearInterval(panicCountdownInterval);
+      panicCountdownInterval = null;
+      document.getElementById('panicCountdownPanel').classList.add('hidden');
+      stopSiren();
+      const button = document.getElementById('recordVoiceButton');
+      const status = document.getElementById('voiceRecordingStatus');
+      button.disabled = true;
+      status.textContent = 'Requesting microphone access…';
+      try {
+        if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+          throw new Error('Audio recording is not supported by this browser. Use the SOS text form or call 112.');
+        }
+        voiceMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        voiceChunks = [];
+        voiceTranscript = '';
+        discardVoiceRecording = false;
+        const preferredType = ['audio/webm;codecs=opus', 'audio/mp4'].find(type => MediaRecorder.isTypeSupported?.(type));
+        voiceRecorder = preferredType
+          ? new MediaRecorder(voiceMediaStream, { mimeType: preferredType })
+          : new MediaRecorder(voiceMediaStream);
+        const SpeechRecognitionType = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognitionType) {
+          voiceRecognition = new SpeechRecognitionType();
+          voiceRecognition.lang = currentLang === 'te' ? 'te-IN' : 'en-IN';
+          voiceRecognition.continuous = true;
+          voiceRecognition.interimResults = true;
+          voiceRecognition.onresult = event => {
+            voiceTranscript = Array.from(event.results).map(result => result[0].transcript).join(' ').trim();
+            status.textContent = voiceTranscript ? `Recording: “${voiceTranscript.slice(0, 100)}”` : 'Recording voice SOS…';
+          };
+          voiceRecognition.onerror = event => {
+            status.textContent = `Recording audio; browser transcription ${event.error}.`;
+          };
+          try { voiceRecognition.start(); } catch (error) { console.warn('Speech recognition could not start:', error.message); }
+        } else {
+          status.textContent = 'Recording audio; this browser does not provide automatic transcription.';
+        }
+        voiceRecorder.ondataavailable = event => {
+          if (event.data.size) voiceChunks.push(event.data);
+        };
+        voiceRecorder.onerror = event => {
+          status.textContent = `Recording error: ${event.error?.message || 'microphone error'}.`;
+        };
+        voiceRecorder.onstop = () => { void finishVoiceSOS(); };
+        voiceRecorder.start(250);
+        button.disabled = false;
+        button.innerHTML = '<i class="fa-solid fa-stop mr-2"></i>Stop recording and send SOS';
+        status.textContent = 'Recording… it will send automatically after 10 seconds.';
+        voiceRecordingTimer = window.setTimeout(() => stopVoiceSOS(false), 10000);
+      } catch (error) {
+        voiceMediaStream?.getTracks().forEach(track => track.stop());
+        voiceMediaStream = null;
+        button.disabled = false;
+        status.textContent = error.message;
+        document.getElementById('panicCountdownPanel').classList.remove('hidden');
+        document.getElementById('panicStatus').textContent = 'Voice recording is unavailable. You can still send a one-tap alert.';
+        document.getElementById('panicSendButton').classList.remove('hidden');
+        document.getElementById('panicSendButton').disabled = false;
+        showToast(error.message, 'error');
+      }
+    }
+
+    function stopVoiceSOS(discard) {
+      if (!voiceRecorder || voiceRecorder.state === 'inactive') return;
+      discardVoiceRecording = discard;
+      window.clearTimeout(voiceRecordingTimer);
+      voiceRecordingTimer = null;
+      if (voiceRecognition) {
+        try { voiceRecognition.stop(); } catch (error) { console.warn('Could not stop speech recognition:', error.message); }
+      }
+      voiceRecorder.stop();
+    }
+
+    async function finishVoiceSOS() {
+      window.clearTimeout(voiceRecordingTimer);
+      voiceRecordingTimer = null;
+      voiceMediaStream?.getTracks().forEach(track => track.stop());
+      voiceMediaStream = null;
+      if (voiceRecognition) {
+        try { voiceRecognition.stop(); } catch (error) { console.warn('Could not stop speech recognition:', error.message); }
+      }
+      const button = document.getElementById('recordVoiceButton');
+      button.disabled = true;
+      if (discardVoiceRecording) {
+        voiceChunks = [];
+        voiceRecorder = null;
+        button.disabled = false;
+        button.innerHTML = '<i class="fa-solid fa-microphone mr-2"></i>Press to Record Voice SOS';
+        document.getElementById('voiceRecordingStatus').textContent = 'Recording cancelled.';
+        return;
+      }
+
+      try {
+        await new Promise(resolve => window.setTimeout(resolve, 300));
+        const clip = new Blob(voiceChunks, { type: voiceRecorder?.mimeType || 'audio/webm' });
+        const recordingId = window.crypto?.randomUUID?.() || `voice-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        let recordingSaved = false;
+        if (clip.size) {
+          try {
+            await saveVoiceRecording(recordingId, clip);
+            recordingSaved = true;
+          } catch (error) {
+            console.error('Could not save local voice recording:', error);
+            showToast(`Voice clip could not be saved locally: ${error.message}`, 'error');
+          }
+        }
+        const transcript = voiceTranscript.trim();
+        const originalReport = transcript
+          ? `Voice SOS: ${transcript}`
+          : 'Voice SOS recorded; automatic transcription was unavailable. Caller requests immediate rescue and follow-up.';
+        const coordinates = await (pendingGpsRequest || getCurrentCoordinates(2500));
+        pendingGpsRequest = null;
+        const locationDescription = coordinates
+          ? `GPS coordinates ${coordinates.lat.toFixed(5)}, ${coordinates.lng.toFixed(5)}`
+          : 'Visakhapatnam (GPS location unavailable)';
+        const response = await api('/incidents/panic', 'POST', {
+          originalReport,
+          locationDescription,
+          ...(coordinates && { coordinates }),
+        });
+        let recordingLinked = false;
+        if (recordingSaved) {
+          try {
+            saveVoiceRecordingLink(response.data.ref, recordingId);
+            recordingLinked = true;
+          } catch (error) {
+            console.error('Could not save the local voice recording link:', error);
+            showToast(`Ticket was sent, but its local audio link could not be saved: ${error.message}`, 'error');
+          }
+        }
+        document.getElementById('ticketTrackerInput').value = response.data.ref;
+        displayTrackedIncident(formatTrackedIncident(response.data));
+        document.getElementById('panicStatus').textContent = `Voice SOS sent. Ticket ${response.data.ref} is awaiting dispatch.`;
+        document.getElementById('panicSendButton').classList.add('hidden');
+        document.getElementById('panicCancelButton').textContent = 'Close SOS panel';
+        document.getElementById('panicCancelButton').onclick = closeSirenModal;
+        document.getElementById('voiceRecordingStatus').textContent = recordingLinked
+          ? 'Ticket sent. Audio is saved on this device only; dispatch receives the transcript when supported.'
+          : 'Ticket sent. Dispatch receives the transcript when supported. Audio was not saved on this device.';
+        panicAlertCreated = true;
+        showToast(`Voice SOS sent: ${response.data.ref}`, 'success');
+        if (canAccessDispatch()) fetchIncidents();
+      } catch (error) {
+        document.getElementById('voiceRecordingStatus').textContent = `Voice SOS could not be sent: ${error.message}. Call 112 if urgent.`;
+        document.getElementById('panicCountdownPanel').classList.remove('hidden');
+        document.getElementById('panicStatus').textContent = 'Voice SOS could not be sent. Retry with a one-tap alert or call 112.';
+        document.getElementById('panicSendButton').classList.remove('hidden');
+        document.getElementById('panicSendButton').disabled = false;
+        showToast(`Voice SOS could not be sent: ${error.message}`, 'error');
+      } finally {
+        voiceChunks = [];
+        voiceRecorder = null;
+        button.disabled = false;
+        button.innerHTML = '<i class="fa-solid fa-microphone mr-2"></i>Press to Record Voice SOS';
+      }
+    }
+
+    function openVoiceDatabase() {
+      return new Promise((resolve, reject) => {
+        if (!window.indexedDB) {
+          reject(new Error('This browser does not support local audio storage.'));
+          return;
+        }
+        const request = indexedDB.open('sahyogai-voice-sos', 1);
+        request.onupgradeneeded = () => request.result.createObjectStore('recordings');
+        request.onerror = () => reject(request.error || new Error('Could not open voice storage.'));
+        request.onsuccess = () => resolve(request.result);
+      });
+    }
+
+    async function saveVoiceRecording(id, blob) {
+      const database = await openVoiceDatabase();
+      await new Promise((resolve, reject) => {
+        const transaction = database.transaction('recordings', 'readwrite');
+        transaction.objectStore('recordings').put(blob, id);
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error || new Error('Could not save audio.'));
+      });
+      database.close();
+    }
+
+    async function getVoiceRecording(id) {
+      const database = await openVoiceDatabase();
+      const blob = await new Promise((resolve, reject) => {
+        const transaction = database.transaction('recordings', 'readonly');
+        const request = transaction.objectStore('recordings').get(id);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error || new Error('Could not read audio.'));
+      });
+      database.close();
+      return blob;
+    }
+
+    function saveVoiceRecordingLink(ref, recordingId) {
+      const links = JSON.parse(localStorage.getItem('sahyog_voice_recording_links') || '{}');
+      links[ref] = recordingId;
+      const keys = Object.keys(links);
+      while (keys.length > 30) delete links[keys.shift()];
+      localStorage.setItem('sahyog_voice_recording_links', JSON.stringify(links));
+    }
+
+    function formatTrackedIncident(incident) {
+      return {
+        ref: incident.ref,
+        title: incident.aiTriage?.incidentTitle || incident.category || 'Emergency SOS',
+        category: incident.category || incident.reportedCategory || 'Emergency SOS',
+        status: incident.status,
+        timestamp: incident.updatedAt || incident.createdAt,
+        assignedVolunteerName: incident.assignments?.find(assignment => assignment.volunteerName)?.volunteerName || null,
+      };
+    }
+
+    function formatTrackedStatus(status) {
+      if (['resolved', 'closed', 'assistance_delivered'].includes(status)) return { label: 'Resolved', icon: '✓', style: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
+      if (status === 'in_progress') return { label: 'Rescue In Progress', icon: '🚑', style: 'bg-blue-100 text-blue-900 border-blue-300' };
+      if (['assigned', 'acknowledged'].includes(status)) return { label: 'Assigned to Volunteer', icon: '🚴', style: 'bg-amber-100 text-amber-900 border-amber-300' };
+      if (status === 'cancelled') return { label: 'Cancelled', icon: '—', style: 'bg-slate-100 text-slate-800 border-slate-300' };
+      return { label: 'Awaiting Assignment', icon: '⏳', style: 'bg-orange-100 text-orange-900 border-orange-300' };
+    }
+
+    async function trackIncident(event) {
+      event?.preventDefault();
+      const ref = document.getElementById('ticketTrackerInput').value.trim().toUpperCase();
+      if (!ref) return;
+      const result = document.getElementById('ticketTrackerResult');
+      result.classList.remove('hidden');
+      result.innerHTML = '<p class="rounded-xl bg-slate-100 p-4 text-sm text-slate-600"><i class="fa-solid fa-spinner animate-spin mr-2"></i>Searching for ticket…</p>';
+      try {
+        const response = await api(`/incidents/track/${encodeURIComponent(ref)}`);
+        displayTrackedIncident(response.data);
+      } catch (error) {
+        result.innerHTML = `<p class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">${escapeHtml(error.message || 'Could not find that ticket.')}</p>`;
+      }
+    }
+
+    async function displayTrackedIncident(ticket) {
+      const result = document.getElementById('ticketTrackerResult');
+      const status = formatTrackedStatus(ticket.status);
+      const timestamp = ticket.timestamp ? new Date(ticket.timestamp).toLocaleString() : 'Not available';
+      if (trackedAudioUrl) {
+        URL.revokeObjectURL(trackedAudioUrl);
+        trackedAudioUrl = null;
+      }
+      result.classList.remove('hidden');
+      result.innerHTML = `
+        <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div><p class="font-mono text-xs font-bold text-slate-500">${escapeHtml(ticket.ref)}</p><h3 class="mt-1 text-base font-black text-slate-950">${escapeHtml(ticket.title)}</h3><p class="mt-1 text-xs font-semibold text-slate-600">${escapeHtml(ticket.category)}</p></div>
+            <span class="rounded-full border px-3 py-1.5 text-xs font-black ${status.style}">${status.icon} ${status.label}</span>
+          </div>
+          <div class="mt-4 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+            <p><i class="fa-regular fa-clock mr-1"></i>Updated: ${escapeHtml(timestamp)}</p>
+            <p><i class="fa-solid fa-user-shield mr-1"></i>Volunteer: ${escapeHtml(ticket.assignedVolunteerName || 'Not assigned yet')}</p>
+          </div>
+          <div id="trackedAudioPlayer" class="mt-3"></div>
+        </article>`;
+      try {
+        const links = JSON.parse(localStorage.getItem('sahyog_voice_recording_links') || '{}');
+        const recordingId = links[ticket.ref];
+        if (!recordingId) return;
+        const clip = await getVoiceRecording(recordingId);
+        if (!clip || !result.isConnected) return;
+        trackedAudioUrl = URL.createObjectURL(clip);
+        document.getElementById('trackedAudioPlayer').innerHTML = `<p class="mb-1 text-xs font-semibold text-slate-600">Voice recording saved on this device</p><audio controls class="w-full" src="${trackedAudioUrl}"></audio>`;
+      } catch (error) {
+        console.error('Could not load the saved voice recording:', error);
+      }
+    }
+
+    function setIncidentView(view) {
+      const grid = view !== 'list';
+      document.getElementById('ticketsGrid').classList.toggle('hidden', !grid);
+      document.getElementById('ticketsListView').classList.toggle('hidden', grid);
+      document.getElementById('incidentGridViewButton').setAttribute('aria-pressed', String(grid));
+      document.getElementById('incidentListViewButton').setAttribute('aria-pressed', String(!grid));
+      document.getElementById('incidentGridViewButton').className = `rounded-lg px-3 py-2 text-xs font-bold ${grid ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}`;
+      document.getElementById('incidentListViewButton').className = `rounded-lg px-3 py-2 text-xs font-bold ${grid ? 'text-slate-700 hover:bg-slate-100' : 'bg-slate-900 text-white'}`;
+      localStorage.setItem('sahyog_incident_view', grid ? 'grid' : 'list');
     }
 
     function toggleMobileNav() {
@@ -2254,7 +2876,7 @@
         area.innerHTML = btnHtml;
         mobileArea.innerHTML = btnHtml;
       } else {
-        const roleColors = { admin: 'bg-red-900 text-red-200', coordinator: 'bg-orange-900 text-orange-200', volunteer: 'bg-emerald-900 text-emerald-200', analyst: 'bg-purple-900 text-purple-200' };
+        const roleColors = { admin: 'bg-red-900 text-red-200', coordinator: 'bg-orange-900 text-orange-200', volunteer: 'bg-emerald-900 text-emerald-200' };
         const roleClass = roleColors[user.role] || 'bg-slate-800 text-slate-200';
         const userHtml = `
           <div class="flex items-center gap-2">
@@ -2296,6 +2918,7 @@
       try {
         const res = await api('/auth/login', 'POST', { username: u, password: p });
         localStorage.setItem('sahyog_token', res.token);
+        if (res.token === 'mock-local-token') localStorage.setItem('sahyog_local_user', JSON.stringify(res.user));
         currentUser = res.user;
         renderAuthUI(currentUser);
         closeLoginModal();
@@ -2329,6 +2952,7 @@
           password,
         });
         localStorage.setItem('sahyog_token', res.token);
+        if (res.token === 'mock-local-token') localStorage.setItem('sahyog_local_user', JSON.stringify(res.user));
         currentUser = res.user;
         renderAuthUI(currentUser);
         document.getElementById('registerForm').reset();
@@ -2353,6 +2977,7 @@
       try {
         const res = await api('/auth/login', 'POST', { username: u, password: p });
         localStorage.setItem('sahyog_token', res.token);
+        if (res.token === 'mock-local-token') localStorage.setItem('sahyog_local_user', JSON.stringify(res.user));
         currentUser = res.user;
         renderAuthUI(currentUser);
         closeLoginModal();
@@ -2763,16 +3388,19 @@
 
     function renderIncidentsGrid(items) {
       const grid = document.getElementById('ticketsGrid');
+      const listBody = document.getElementById('ticketsListBody');
       const emptyState = document.getElementById('ticketsEmptyState');
       if (!grid) return;
 
       if (!items || items.length === 0) {
         grid.innerHTML = '';
+        listBody.innerHTML = '';
         emptyState.classList.remove('hidden');
         return;
       }
       emptyState.classList.add('hidden');
       grid.innerHTML = '';
+      listBody.innerHTML = '';
 
       items.forEach(t => {
         const card = document.createElement('div');
@@ -2838,6 +3466,19 @@
           </div>
         `;
         grid.appendChild(card);
+
+        const summary = t.aiTriage?.summary || t.originalReport || 'Emergency report';
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-orange-50/50';
+        row.innerHTML = `
+          <td class="whitespace-nowrap px-3 py-3 font-mono font-bold text-slate-700">${escapeHtml(t.ref)}</td>
+          <td class="whitespace-nowrap px-3 py-3"><span class="${badgeClass} inline-flex items-center gap-1 rounded px-2 py-1 font-extrabold uppercase"><i class="${iconClass}"></i>${escapeHtml(t.effectiveUrgency || 'Medium')}</span></td>
+          <td class="max-w-xs px-3 py-3"><span class="block truncate font-semibold text-slate-900">${escapeHtml(t.aiTriage?.incidentTitle || t.category || 'Emergency Incident')}</span><span class="block truncate text-[11px] text-slate-500">${escapeHtml(summary)}</span></td>
+          <td class="max-w-[200px] truncate px-3 py-3 text-slate-600">${escapeHtml(t.locationDescription)}</td>
+          <td class="whitespace-nowrap px-3 py-3">${statusBadge}</td>
+          <td class="whitespace-nowrap px-3 py-3"><button onclick="openTaskModal('${t._id}')" class="font-bold text-orange-700 underline underline-offset-2">${escapeHtml(taskButtonText)}</button></td>
+        `;
+        listBody.appendChild(row);
       });
     }
 
@@ -2872,10 +3513,10 @@
         const inc = res.data;
         currentModalIncident = inc;
         const canManage = hasCoordinatorAccess();
-        const isVolunteer = currentUser?.role === 'volunteer';
-        document.getElementById('modalVolunteerSection').classList.toggle('hidden', !canManage && !isVolunteer);
+        const hasDispatchAccess = ['admin', 'coordinator', 'volunteer'].includes(currentUser?.role);
+        document.getElementById('modalVolunteerSection').classList.toggle('hidden', !hasDispatchAccess);
         document.getElementById('coordinatorAssignControls').classList.toggle('hidden', !canManage);
-        document.getElementById('volunteerTaskActions').classList.toggle('hidden', !isVolunteer);
+        document.getElementById('volunteerTaskActions').classList.toggle('hidden', !hasDispatchAccess);
 
         document.getElementById('modalId').textContent = inc.ref;
         document.getElementById('modalTitle').textContent = inc.aiTriage?.incidentTitle || inc.category || 'Emergency Incident';
@@ -2893,7 +3534,7 @@
         const assignedVol = inc.assignments?.[0]?.volunteerName || "Unassigned (Available)";
         document.getElementById('modalAssignee').textContent = assignedVol;
 
-        if (isVolunteer) {
+        if (hasDispatchAccess) {
           const ownAssignment = (inc.assignments || []).find(item =>
             String(item.volunteer?._id || item.volunteer) === String(currentUser.id || currentUser._id)
           );
@@ -2909,7 +3550,7 @@
             actionButton.dataset.assignmentId = ownAssignment._id;
             actionButton.dataset.nextStatus = nextStatus || '';
           } else if (['verified', 'awaiting_assignment'].includes(inc.status) && !(inc.assignments || []).length) {
-            statusText.textContent = 'This task is available for a volunteer to claim.';
+            statusText.textContent = 'This task is available for authorized personnel to claim.';
             actionButton.textContent = 'Claim this task';
             actionButton.disabled = false;
             actionButton.dataset.assignmentId = '';
@@ -2979,6 +3620,27 @@
         .bindPopup(`<b>${escapeHtml(locName)}</b><br>Reported Location`).openPopup();
     }
 
+    async function handleVolunteerTaskAction() {
+      if (!currentModalIncident || !['admin', 'coordinator', 'volunteer'].includes(currentUser?.role)) return;
+      const button = document.getElementById('volunteerTaskButton');
+      const nextStatus = button.dataset.nextStatus;
+      try {
+        if (nextStatus === 'claim') {
+          await api(`/volunteers/claim/${currentModalIncident._id}`, 'POST', {});
+          showToast('Task claimed. Acknowledge it when you are ready to respond.', 'success');
+        } else if (button.dataset.assignmentId && nextStatus) {
+          await api(`/volunteers/assignments/${button.dataset.assignmentId}`, 'PATCH', { status: nextStatus });
+          showToast(nextStatus === 'completed' ? 'Task marked resolved.' : 'Task progress updated.', 'success');
+        } else {
+          return;
+        }
+        await fetchIncidents();
+        await openTaskModal(currentModalIncident._id);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
     function renderStatusButtons(status) {
       const container = document.getElementById('modalStatusButtons');
       container.parentElement.classList.toggle('hidden', !hasCoordinatorAccess());
@@ -3001,27 +3663,6 @@
       if (allowed.length === 0) {
         container.innerHTML = `<span class="text-xs text-slate-400 italic">No further status transitions permitted.</span>`;
         return;
-      }
-
-      async function handleVolunteerTaskAction() {
-        if (!currentModalIncident || currentUser?.role !== 'volunteer') return;
-        const button = document.getElementById('volunteerTaskButton');
-        const nextStatus = button.dataset.nextStatus;
-        try {
-          if (nextStatus === 'claim') {
-            await api(`/volunteers/claim/${currentModalIncident._id}`, 'POST', {});
-            showToast('Task claimed. Acknowledge it when you are ready to respond.', 'success');
-          } else if (button.dataset.assignmentId && nextStatus) {
-            await api(`/volunteers/assignments/${button.dataset.assignmentId}`, 'PATCH', { status: nextStatus });
-            showToast(nextStatus === 'completed' ? 'Task marked resolved.' : 'Task progress updated.', 'success');
-          } else {
-            return;
-          }
-          await fetchIncidents();
-          await openTaskModal(currentModalIncident._id);
-        } catch (err) {
-          showToast(err.message, 'error');
-        }
       }
 
       allowed.forEach(nxt => {
@@ -3405,7 +4046,7 @@
 
     // --- 13. ANALYTICS & CHARTS MODULE ---
     async function loadAnalytics() {
-      if (!['admin', 'analyst'].includes(currentUser?.role)) return;
+      if (currentUser?.role !== 'admin') return;
       try {
         const canViewAudit = currentUser?.role === 'admin';
         const [sumRes, catRes, urgRes, trendRes, auditRes] = await Promise.all([
@@ -3707,6 +4348,7 @@
 
     // Startup initialization
     window.addEventListener('DOMContentLoaded', async () => {
+      setIncidentView(localStorage.getItem('sahyog_incident_view') === 'list' ? 'list' : 'grid');
       await initAuth();
       loadDraft();
       initSSE();

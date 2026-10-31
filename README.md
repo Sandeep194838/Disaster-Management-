@@ -11,15 +11,15 @@ SahyogAI coordinates disaster emergency requests, volunteers, and relief resourc
 **Key capabilities:**
 - Multilingual emergency intake (English + Telugu)
 - Public, no-login citizen SOS intake from the home page
-- One-click demo access for Coordinator, Administrator, Volunteer, and Analyst roles
-- Role-based navigation for dispatch, inventory, administration, and analytics
+- One-click demo access for Coordinator, Administrator, and Volunteer roles
+- Role-based navigation for dispatch, inventory, and administration
 - Optional browser speech-to-text for emergency reports (microphone permission and browser support required)
 - Server-side AI triage via Gemini API (with deterministic fallback)
 - Genuine duplicate detection using multi-signal similarity scoring
 - Real-time shared dispatch board via Server-Sent Events
 - Volunteer assignment and acknowledgment workflow
 - Resource inventory with atomic stock management
-- Role-based access control (Admin / Coordinator / Volunteer / Analyst)
+- Role-based access control (Admin / Coordinator / Volunteer)
 - Audit trail for all critical actions
 
 ---
@@ -88,7 +88,6 @@ npm run seed
 This creates:
 - `admin` / `Admin@2024!` — Administrator
 - `coordinator` / `Coord@2024!` — Emergency Coordinator
-- `analyst` / `Analyst@2024!` — Read-only Analyst
 - `kiran_nss`, `priya_redcross`, `team_delta`, `team_braver` / `Demo@2024!` — Demo volunteer accounts
 - 6 realistic Visakhapatnam demo incidents
 - 6 demo resource inventory entries with reserved/dispatched stock and movement history
@@ -96,7 +95,7 @@ This creates:
 
 The seed command can be rerun without duplicating demo records. Untouched legacy demo inventory is upgraded to the representative stock levels; inventory with recorded movements is preserved.
 
-The home page provides one-click demo access for each role. Citizens can submit SOS reports without signing in. New users can self-register as volunteers only; elevated roles must use their seeded accounts. Volunteers can claim open dispatch tasks and update progress; administrators and coordinators can also access the live dispatch board. The Volunteers page displays each record's ID. Administrators and coordinators can add volunteers, deactivate or reactivate them, update availability, and assign available volunteers to incidents. Deactivation preserves the volunteer ID and assignment history, and is blocked while the volunteer has active assignments.
+The home page provides one-click demo access for each role. Citizens can submit SOS reports without signing in. New users can self-register as volunteers only; elevated roles must use their seeded accounts. All three personnel roles can claim open dispatch tasks and update progress; administrators and coordinators can also assign volunteers. The Volunteers page displays each record's ID. Administrators and coordinators can add volunteers, deactivate or reactivate them, update availability, and assign available volunteers to incidents. Deactivation preserves the volunteer ID and assignment history, and is blocked while the volunteer has active assignments.
 
 ### 4. Start the server
 
@@ -196,12 +195,18 @@ See `tests/api.test.js` and `tests/triage.test.js` for all test cases.
 ### Analytics
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/analytics/summary` | Admin / Analyst | Dashboard KPIs |
-| GET | `/api/analytics/incidents-by-category` | Admin / Analyst | Category breakdown |
-| GET | `/api/analytics/incidents-by-urgency` | Admin / Analyst | Urgency breakdown |
-| GET | `/api/analytics/incidents-trend` | Admin / Analyst | Daily trend |
-| GET | `/api/analytics/resource-usage` | Admin / Analyst | Resource metrics |
+| GET | `/api/analytics/summary` | Admin | Dashboard KPIs |
+| GET | `/api/analytics/incidents-by-category` | Admin | Category breakdown |
+| GET | `/api/analytics/incidents-by-urgency` | Admin | Urgency breakdown |
+| GET | `/api/analytics/incidents-trend` | Admin | Daily trend |
+| GET | `/api/analytics/resource-usage` | Admin | Resource metrics |
 | GET | `/api/analytics/audit` | Admin | Audit trail |
+
+### Public emergency intake
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/incidents/panic` | None | Rate-limited critical rescue alert with optional GPS coordinates |
+| GET | `/api/incidents/track/:ref` | None | Minimal public ticket status lookup |
 
 ### Real-time
 | Endpoint | Description |
@@ -236,7 +241,7 @@ PORT=5000
 2. In **Project Settings → Environment Variables**, set `MONGODB_URI` to a reachable MongoDB Atlas database and `JWT_SECRET` to a fresh random secret. Add `NODE_ENV=production`; set `DEMO_MODE=true` while preparing the demo. `GEMINI_API_KEY` is optional.
 3. Ensure the Atlas network access rules allow connections from the Vercel deployment. Resource stock movements use MongoDB transactions, so use a replica-set deployment such as Atlas.
 4. On the first API request with `DEMO_MODE=true`, the service creates missing demo role accounts and seeds sample incidents, volunteers, and inventory. The same setup can be run manually with `cd server; npm install; npm run seed`. Existing accounts are preserved; known seeded role accounts are restored to their documented demo passwords if needed.
-5. Check `/api/health`, then sign in with `admin / Admin@2024!`, `coordinator / Coord@2024!`, or `analyst / Analyst@2024!`. Coordinators and administrators can add inventory resources from **Relief Inventory → Add Resource**; read-only views remain public.
+5. Check `/api/health`, then sign in with `admin / Admin@2024!`, `coordinator / Coord@2024!`, or `kiran_nss / Demo@2024!`. Coordinators and administrators can add inventory resources from **Relief Inventory → Add Resource**.
 
 ### Docker (optional)
 A `Dockerfile` can be added at `server/Dockerfile`. The app listens on `PORT` env variable.
@@ -253,7 +258,7 @@ A `Dockerfile` can be added at `server/Dockerfile`. The app listens on `PORT` en
 6. Click **View & Dispatch** → assign a volunteer
 7. Go to **Resources** → reserve drinking water for the incident
 8. Update incident status: under_review → verified → assigned
-9. Open Analytics → see live statistics update
+9. Use the home-page ticket tracker to check the incident status
 10. Reset demo data: `POST /api/demo/reset { "confirm": "RESET_DEMO_DATA" }`
 
 ---

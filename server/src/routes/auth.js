@@ -17,7 +17,7 @@ const authLimiter = rateLimit({
   message: { success: false, error: 'Too many authentication attempts. Please wait 15 minutes.' },
 });
 const reservedUsernames = new Set([
-  'admin', 'coordinator', 'analyst',
+  'admin', 'coordinator',
   'kiran_nss', 'priya_redcross', 'team_delta', 'team_braver',
 ]);
 
@@ -48,7 +48,9 @@ router.post('/login', authLimiter, asyncHandler(async (req, res) => {
   if (!user) throw createError('Invalid username or password.', 401);
 
   const match = await user.comparePassword(value.password);
-  if (!match) throw createError('Invalid username or password.', 401);
+  if (!match || !['admin', 'coordinator', 'volunteer'].includes(user.role)) {
+    throw createError('Invalid username or password.', 401);
+  }
 
   user.lastSeen = new Date();
   await user.save();

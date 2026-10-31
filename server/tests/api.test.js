@@ -29,7 +29,6 @@ const Resource = require('../src/models/Resource');
 let coordinatorToken;
 let volunteerToken;
 let adminToken;
-let analystToken;
 let coordinatorId;
 let volunteerId;
 let hasDB = false;
@@ -68,11 +67,6 @@ beforeAll(async () => {
     });
     coordinatorId = coordinator._id;
 
-    await User.create({
-      displayName: 'Test Analyst', username: 'test_analyst',
-      passwordHash: 'Analyst@Test1', role: 'analyst',
-    });
-
     const volunteer = await User.create({
       displayName: 'Test Volunteer', username: 'test_vol',
       passwordHash: 'Vol@Test1234', role: 'volunteer',
@@ -83,9 +77,6 @@ beforeAll(async () => {
     // Get tokens
     const adminRes = await request(app).post('/api/auth/login').send({ username: 'test_admin', password: 'Admin@Test1' });
     adminToken = adminRes.body.token;
-
-    const analystRes = await request(app).post('/api/auth/login').send({ username: 'test_analyst', password: 'Analyst@Test1' });
-    analystToken = analystRes.body.token;
 
     const coordRes = await request(app).post('/api/auth/login').send({ username: 'test_coord', password: 'Coord@Test1' });
     coordinatorToken = coordRes.body.token;
@@ -151,6 +142,10 @@ describe('Health check & Security', () => {
 
 // ── Test 2: Authentication ────────────────────────────────────────────────────
 describe('Authentication', () => {
+  test('Analyst is no longer an assignable user role', () => {
+    expect(User.schema.path('role').enumValues).toEqual(['admin', 'coordinator', 'volunteer']);
+  });
+
   test('Public registration cannot choose an elevated role', async () => {
     const res = await request(app).post('/api/auth/register').send({
       displayName: 'Privilege Attempt',
@@ -217,6 +212,39 @@ describe('Authentication', () => {
     expect(res.status).toBe(200);
     expect(res.body.user.username).toBe('test_coord');
     expect(JSON.stringify(res.body)).not.toContain('passwordHash');
+  });
+});
+
+describe('Public emergency routes', () => {
+  test('One-tap panic alerts validate request fields', async () => {
+    const res = await request(app).post('/api/incidents/panic').send({
+      originalReport: 'Help',
+      locationDescription: 'Vizag',
+      coordinates: { lat: 100, lng: 0 },
+    });
+    expect(res.status).toBe(422);
+  });
+
+  dbTest('Panic alert is critical and can be tracked without exposing report details', async () => {
+    const created = await request(app).post('/api/incidents/panic').send({
+      originalReport: 'Critical rescue needed near the beach road now.',
+      locationDescription: 'Beach Road, Visakhapatnam',
+      coordinates: { lat: 17.72, lng: 83.31, source: 'gps' },
+    });
+
+    expect(created.status).toBe(201);
+    expect(created.body.data.effectiveUrgency).toBe('Critical');
+    expect(created.body.data.status).toBe('awaiting_assignment');
+
+    const tracked = await request(app).get(`/api/incidents/track/${created.body.data.ref}`);
+    expect(tracked.status).toBe(200);
+    expect(tracked.body.data).toEqual(expect.objectContaining({
+      ref: created.body.data.ref,
+      status: 'awaiting_assignment',
+      assignedVolunteerName: null,
+    }));
+    expect(tracked.body.data.originalReport).toBeUndefined();
+    expect(tracked.body.data.contactPhone).toBeUndefined();
   });
 });
 
@@ -390,14 +418,12 @@ describe('Authorization', () => {
     expect(assignRes.status).toBe(401);
   });
 
-  dbTest('Coordinator cannot access analyst metrics or admin audit data', async () => {
-    // Summary is now open to all (optionalAuth)
+  dbTest('Coordinator cannot access admin analytics or audit data', async () => {
     const summaryRes = await request(app)
       .get('/api/analytics/summary')
       .set('Authorization', `Bearer ${volunteerToken}`);
     expect(summaryRes.status).toBe(403);
 
-    // Audit still requires coordinator+
     const auditRes = await request(app)
       .get('/api/analytics/audit')
       .set('Authorization', `Bearer ${volunteerToken}`);
@@ -416,22 +442,16 @@ describe('Authorization', () => {
     responses.forEach(response => expect(response.status).toBe(401));
   });
 
-  dbTest('Admin and analyst can read metrics; other roles are denied', async () => {
+  dbTest('Administrators can read metrics; volunteers are denied', async () => {
     const adminMetrics = await request(app).get('/api/analytics/summary')
       .set('Authorization', `Bearer ${adminToken}`);
-    const analystMetrics = await request(app).get('/api/analytics/summary')
-      .set('Authorization', `Bearer ${analystToken}`);
     const volunteerMetrics = await request(app).get('/api/analytics/summary')
       .set('Authorization', `Bearer ${volunteerToken}`);
-    const analystDispatch = await request(app).get('/api/incidents')
-      .set('Authorization', `Bearer ${analystToken}`);
     const coordinatorInventory = await request(app).get('/api/resources')
       .set('Authorization', `Bearer ${coordinatorToken}`);
 
     expect(adminMetrics.status).toBe(200);
-    expect(analystMetrics.status).toBe(200);
     expect(volunteerMetrics.status).toBe(403);
-    expect(analystDispatch.status).toBe(403);
     expect(coordinatorInventory.status).toBe(200);
   });
 });
@@ -581,6 +601,32 @@ describe('Volunteer task claiming', () => {
     expect((await User.findById(claimant._id)).profile.availability).toBe('available');
     expect((await Incident.findById(incident._id)).status).toBe('assistance_delivered');
   });
+
+  dbTest('Coordinators and administrators can claim and complete dispatch tasks', async () => {
+    for (const [user, token] of [
+      [{ _id: coordinatorId, displayName: 'Test Coordinator' }, coordinatorToken],
+      [{ _id: (await User.findOne({ username: 'test_admin' }))._id, displayName: 'Test Admin' }, adminToken],
+    ]) {
+      const incident = await Incident.create({
+        originalReport: `${user.displayName} dispatch test needs rescue support immediately.`,
+        locationDescription: 'Test location, Visakhapatnam',
+        status: 'awaiting_assignment',
+        triageStatus: 'skipped',
+      });
+      const claim = await request(app)
+        .post(`/api/volunteers/claim/${incident._id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({});
+
+      expect(claim.status).toBe(201);
+      const completed = await request(app)
+        .patch(`/api/volunteers/assignments/${claim.body.data._id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'completed' });
+      expect(completed.status).toBe(200);
+      expect((await User.findById(user._id)).profile.availability).toBe('available');
+    }
+  });
 });
 
 // ── Test 9: Analytics ─────────────────────────────────────────────────────────
@@ -685,10 +731,10 @@ describe('Volunteer management and dispatch', () => {
   });
 });
 
-describe('Demo data and analytics consistency', () => {
+describe('Demo data consistency', () => {
   dbTest('Demo-mode startup provisions missing accounts and inventory', async () => {
     const { ensureDemoEnvironment, provisionDemoEnvironment } = require('../src/utils/demoEnvironment');
-    await User.deleteMany({ username: { $in: ['admin', 'coordinator', 'analyst'] } });
+    await User.deleteMany({ username: { $in: ['admin', 'coordinator'] } });
 
     await expect(ensureDemoEnvironment()).resolves.toBe(true);
     const seededAdmin = await User.findOne({ username: 'admin' }).select('+passwordHash');
@@ -699,7 +745,6 @@ describe('Demo data and analytics consistency', () => {
     const accounts = [
       ['admin', 'Admin@2024!', 'admin'],
       ['coordinator', 'Coord@2024!', 'coordinator'],
-      ['analyst', 'Analyst@2024!', 'analyst'],
     ];
     for (const [username, password, role] of accounts) {
       const login = await request(app).post('/api/auth/login').send({ username, password });

@@ -3,7 +3,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const ROLES = ['admin', 'coordinator', 'volunteer', 'analyst'];
+const ROLES = ['admin', 'coordinator', 'volunteer'];
 
 const userSchema = new mongoose.Schema({
   displayName: {
@@ -94,4 +94,3 @@ userSchema.methods.toSafeObject = function() {
 
 module.exports = mongoose.model('User', userSchema);
 module.exports.ROLES = ROLES;
-

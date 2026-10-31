@@ -6,7 +6,6 @@ const { seedDemoData } = require('../routes/demo');
 const DEMO_ACCOUNTS = [
   { displayName: 'Admin (Demo)', username: 'admin', passwordHash: 'Admin@2024!', role: 'admin' },
   { displayName: 'Coordinator Lakshmi', username: 'coordinator', passwordHash: 'Coord@2024!', role: 'coordinator' },
-  { displayName: 'Analyst Ravi', username: 'analyst', passwordHash: 'Analyst@2024!', role: 'analyst' },
 ];
 
 let provisioningPromise;

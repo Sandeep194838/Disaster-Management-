@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const Joi = require('joi');
 const Incident = require('../models/Incident');
 const Assignment = require('../models/Assignment');
@@ -12,6 +13,13 @@ const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 const { asyncHandler, createError } = require('../middleware/errorHandler');
 
 const router = express.Router();
+const panicLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many emergency alerts from this connection. Please call 112 directly if this is urgent.' },
+});
 
 const { URGENCY_LEVELS, CATEGORIES, INCIDENT_STATUSES } = Incident;
 
@@ -60,6 +68,11 @@ const updateIncidentSchema = Joi.object({
 const statusChangeSchema = Joi.object({
   status: Joi.string().valid(...INCIDENT_STATUSES).required(),
   note:   Joi.string().max(1000).allow('', null),
+});
+const panicSchema = Joi.object({
+  originalReport: Joi.string().min(10).max(5000).default('Critical Rescue SOS: Immediate assistance requested through the panic alert.'),
+  locationDescription: Joi.string().min(3).max(500).default('Visakhapatnam (GPS location unavailable)'),
+  coordinates: createIncidentSchema.extract('coordinates').optional(),
 });
 
 // ---- Helper ------------------------------------------------------------------
@@ -196,6 +209,83 @@ router.post('/', optionalAuth, asyncHandler(async (req, res) => {
   broadcast('incident:created', { incident: sanitizeForPublic(incident) });
 
   res.status(201).json({ success: true, data: sanitizeForPublic(incident) });
+}));
+
+// ============================================================================
+// POST /api/incidents/panic — one-tap critical rescue alert
+// ============================================================================
+router.post('/panic', panicLimiter, optionalAuth, asyncHandler(async (req, res) => {
+  const { error, value } = panicSchema.validate(req.body || {});
+  if (error) throw createError(error.details.map(detail => detail.message).join('; '), 422);
+
+  const incident = await Incident.create({
+    originalReport: value.originalReport,
+    locationDescription: value.locationDescription,
+    coordinates: value.coordinates,
+    reportedCategory: 'Rescue Assistance',
+    category: 'Rescue Assistance',
+    aiRecommendedUrgency: 'Critical',
+    effectiveUrgency: 'Critical',
+    status: 'awaiting_assignment',
+    triageStatus: 'skipped',
+    isAnonymous: !req.user,
+    ...(req.user && { reportedBy: req.user._id, reportedByName: req.user.displayName }),
+    aiTriage: {
+      source: 'fallback',
+      recommendedUrgency: 'Critical',
+      recommendedCategory: 'Rescue Assistance',
+      incidentTitle: 'Critical Rescue SOS',
+      summary: 'A one-tap emergency alert needs immediate dispatcher review.',
+      immediateNeeds: ['Emergency assessment', 'Rescue response'],
+      hazards: ['Urgent assistance requested'],
+      confidence: 'uncertain',
+      detectedLanguage: 'unknown',
+      processedAt: new Date(),
+    },
+  });
+
+  incident.statusHistory.push({
+    status: 'awaiting_assignment',
+    changedBy: req.user?._id,
+    changedByName: req.user?.displayName || 'Public Reporter',
+    note: 'Critical one-tap rescue alert received',
+    timestamp: new Date(),
+  });
+  await incident.save();
+
+  await audit.record({
+    actor: req.user?._id, actorName: req.user?.displayName || 'Anonymous',
+    actorRole: req.user?.role, action: 'incident:panic_created',
+    entityType: 'Incident', entityId: incident._id, entityRef: incident.ref,
+    ipAddress: req.ip,
+  });
+  broadcast('incident:created', { incident: sanitizeForPublic(incident) });
+
+  res.status(201).json({ success: true, data: sanitizeForPublic(incident) });
+}));
+
+// ============================================================================
+// GET /api/incidents/track/:ref — public, minimal ticket status lookup
+// ============================================================================
+router.get('/track/:ref', asyncHandler(async (req, res) => {
+  const ref = String(req.params.ref || '').trim().toUpperCase();
+  const incident = await Incident.findOne({ ref })
+    .select('ref category status createdAt updatedAt aiTriage assignments')
+    .populate('assignments', 'volunteerName status')
+    .lean();
+  if (!incident) throw createError('No ticket found for that incident ID.', 404);
+
+  res.json({
+    success: true,
+    data: {
+      ref: incident.ref,
+      title: incident.aiTriage?.incidentTitle || incident.category || 'Emergency SOS',
+      category: incident.category || incident.aiTriage?.recommendedCategory || 'Emergency SOS',
+      status: incident.status,
+      timestamp: incident.updatedAt || incident.createdAt,
+      assignedVolunteerName: incident.assignments?.find(assignment => assignment.volunteerName)?.volunteerName || null,
+    },
+  });
 }));
 
 // ============================================================================
