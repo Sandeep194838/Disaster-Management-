@@ -3,20 +3,38 @@
 const app = require('../server/src/app');
 const connectDB = require('../server/src/utils/db');
 
-let isDbConnecting = false;
+let dbConnectionPromise;
+
+async function ensureDatabaseConnection() {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured for this deployment.');
+  }
+
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI is not configured for this deployment.');
+  }
+
+  if (connectDB.isConnected()) return connectDB.connection;
+
+  if (!dbConnectionPromise) {
+    dbConnectionPromise = connectDB().finally(() => {
+      dbConnectionPromise = null;
+    });
+  }
+
+  return dbConnectionPromise;
+}
 
 module.exports = async (req, res) => {
-  if (process.env.MONGODB_URI && !isDbConnecting) {
-    try {
-      isDbConnecting = true;
-      await connectDB();
-    } catch (err) {
-      console.warn('[Vercel Serverless] MongoDB connection warning:', err.message);
-    } finally {
-      isDbConnecting = false;
-    }
+  try {
+    await ensureDatabaseConnection();
+  } catch (err) {
+    console.error('[Vercel Serverless] Database unavailable:', err.message);
+    return res.status(503).json({
+      success: false,
+      error: 'API configuration is incomplete or the database is unavailable. Verify JWT_SECRET, MONGODB_URI, and database access.',
+    });
   }
 
   return app(req, res);
 };
-

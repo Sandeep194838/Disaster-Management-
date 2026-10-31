@@ -10,6 +10,7 @@ SahyogAI coordinates disaster emergency requests, volunteers, and relief resourc
 
 **Key capabilities:**
 - Multilingual emergency intake (English + Telugu)
+- Optional browser speech-to-text for emergency reports (microphone permission and browser support required)
 - Server-side AI triage via Gemini API (with deterministic fallback)
 - Genuine duplicate detection using multi-signal similarity scoring
 - Real-time shared dispatch board via Server-Sent Events
@@ -168,7 +169,7 @@ See `tests/api.test.js` and `tests/triage.test.js` for all test cases.
 ### Volunteers
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/volunteers` | Required | List volunteers |
+| GET | `/api/volunteers` | Optional | List active volunteers; phone numbers remain private |
 | POST | `/api/volunteers` | Coordinator+ | Create a volunteer account |
 | GET | `/api/volunteers/me` | Required | Own profile + assignments |
 | PATCH | `/api/volunteers/:id/availability` | Required | Update availability |
@@ -180,18 +181,18 @@ See `tests/api.test.js` and `tests/triage.test.js` for all test cases.
 ### Resources
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/resources` | Required | List inventory |
+| GET | `/api/resources` | Optional | List inventory |
 | POST | `/api/resources` | Coordinator+ | Create resource |
 | POST | `/api/resources/:id/movement` | Coordinator+ | Stock action |
 
 ### Analytics
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/analytics/summary` | Coord/Analyst/Admin | Dashboard KPIs |
-| GET | `/api/analytics/incidents-by-category` | Coord/Analyst/Admin | Category breakdown |
-| GET | `/api/analytics/incidents-by-urgency` | Coord/Analyst/Admin | Urgency breakdown |
-| GET | `/api/analytics/incidents-trend` | Coord/Analyst/Admin | Daily trend |
-| GET | `/api/analytics/resource-usage` | Coord/Analyst/Admin | Resource metrics |
+| GET | `/api/analytics/summary` | Optional | Dashboard KPIs |
+| GET | `/api/analytics/incidents-by-category` | Optional | Category breakdown |
+| GET | `/api/analytics/incidents-by-urgency` | Optional | Urgency breakdown |
+| GET | `/api/analytics/incidents-trend` | Optional | Daily trend |
+| GET | `/api/analytics/resource-usage` | Optional | Resource metrics |
 | GET | `/api/analytics/audit` | Coord/Admin | Audit trail |
 
 ### Real-time
@@ -222,6 +223,13 @@ PORT=5000
 5. Set start command: `npm start`
 6. Ensure MongoDB is accessible (use Atlas for managed DB)
 
+### Vercel
+1. Import the repository root as the project; `vercel.json` routes `/api/*` to the serverless Express handler.
+2. In **Project Settings → Environment Variables**, set `MONGODB_URI` to a reachable MongoDB Atlas database and `JWT_SECRET` to a fresh random secret. Add `NODE_ENV=production`; set `DEMO_MODE=true` only while preparing the demo. `GEMINI_API_KEY` is optional.
+3. Ensure the Atlas network access rules allow connections from the Vercel deployment. Resource stock movements use MongoDB transactions, so use a replica-set deployment such as Atlas.
+4. Seed the target database once from a trusted local machine with the same `MONGODB_URI`: run `cd server; npm install; npm run seed`. The seed script creates the demo coordinator (`coordinator / Coord@2024!`) and sample records.
+5. Redeploy after setting environment variables. Check `/api/health`, then sign in as the coordinator to create volunteers, manage inventory, and view the audit trail. Read-only volunteer, inventory, and analytics views are available without signing in; management actions require coordinator/admin credentials.
+
 ### Docker (optional)
 A `Dockerfile` can be added at `server/Dockerfile`. The app listens on `PORT` env variable.
 
@@ -246,6 +254,7 @@ A `Dockerfile` can be added at `server/Dockerfile`. The app listens on `PORT` en
 
 | Area | Current State | Future |
 |------|--------------|--------|
+| Voice input | Uses browser speech recognition when supported; text entry remains available | Broader browser and language support |
 | Maps | Leaflet map shown in modal if coordinates provided | Full incident map view with clustering |
 | Geocoding | User-entered text only; no auto-geocoding | Integrate Google Maps / OpenRouteService |
 | Offline | Service worker caches shell only; API calls fail offline | Full offline queue with sync |

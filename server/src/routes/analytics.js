@@ -6,7 +6,7 @@ const Assignment = require('../models/Assignment');
 const Resource = require('../models/Resource');
 const User = require('../models/User');
 const AuditEvent = require('../models/AuditEvent');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 const router = express.Router();
@@ -15,8 +15,8 @@ const availableStockExpression = {
   $subtract: ['$quantityTotal', { $add: ['$quantityReserved', '$quantityDispatched'] }],
 };
 
-// Only coordinators, analysts, admins can see analytics
-router.use(authenticate, authorize('admin', 'coordinator', 'analyst'));
+// Allow unauthenticated read access to analytics; audit route requires coordinator+
+router.use(optionalAuth);
 
 // ============================================================================
 // GET /api/analytics/summary — dashboard KPIs
@@ -48,9 +48,9 @@ router.get('/summary', asyncHandler(async (req, res) => {
     Incident.countDocuments({ ...demoFilter, status: { $in: ['in_progress', 'acknowledged', 'assigned'] } }),
     Incident.countDocuments({ ...demoFilter, status: { $in: ['assistance_delivered', 'resolved', 'closed'] } }),
     Incident.countDocuments({ ...demoFilter, duplicateTag: 'confirmed_duplicate' }),
-    User.countDocuments({ role: 'volunteer', isActive: true }),
-    User.countDocuments({ role: 'volunteer', isActive: true, 'profile.availability': 'available' }),
-    User.countDocuments({ role: 'volunteer', isActive: true, 'profile.availability': 'assigned' }),
+    User.countDocuments({ ...demoFilter, role: 'volunteer', isActive: true }),
+    User.countDocuments({ ...demoFilter, role: 'volunteer', isActive: true, 'profile.availability': 'available' }),
+    User.countDocuments({ ...demoFilter, role: 'volunteer', isActive: true, 'profile.availability': 'assigned' }),
     Resource.countDocuments(demoFilter),
     Resource.aggregate([
       { $match: demoFilter },
@@ -157,7 +157,7 @@ router.get('/resource-usage', asyncHandler(async (req, res) => {
 // ============================================================================
 // GET /api/analytics/audit — recent audit trail (admin only)
 // ============================================================================
-router.get('/audit', authorize('admin', 'coordinator'), asyncHandler(async (req, res) => {
+router.get('/audit', authenticate, authorize('admin', 'coordinator'), asyncHandler(async (req, res) => {
   const { page = 1, limit = 50, entityType, action } = req.query;
   const filter = {};
   if (entityType) filter.entityType = entityType;

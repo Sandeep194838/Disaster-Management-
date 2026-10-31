@@ -7,7 +7,7 @@ const Assignment = require('../models/Assignment');
 const Incident = require('../models/Incident');
 const audit = require('../services/auditService');
 const { broadcast } = require('../utils/sse');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 const { asyncHandler, createError } = require('../middleware/errorHandler');
 
 const router = express.Router();
@@ -41,9 +41,9 @@ const progressSchema = Joi.object({
 // ============================================================================
 // GET /api/volunteers — list available volunteers
 // ============================================================================
-router.get('/', authenticate, asyncHandler(async (req, res) => {
+router.get('/', optionalAuth, asyncHandler(async (req, res) => {
   const { availability, skill, page = 1, limit = 50 } = req.query;
-  const canManage = ['admin', 'coordinator'].includes(req.user.role);
+  const canManage = req.user && ['admin', 'coordinator'].includes(req.user.role);
   const includeInactive = canManage && req.query.includeInactive === 'true';
   const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
   const pageLimit = Math.min(100, Math.max(1, Number.parseInt(limit, 10) || 50));
@@ -62,7 +62,7 @@ router.get('/', authenticate, asyncHandler(async (req, res) => {
   const safe = volunteers.map(v => {
     const obj = { ...v };
     delete obj.passwordHash;
-    if (!['admin', 'coordinator'].includes(req.user.role)) {
+    if (!['admin', 'coordinator'].includes(req.user?.role)) {
       delete obj.profile?.phone;
     }
     return obj;

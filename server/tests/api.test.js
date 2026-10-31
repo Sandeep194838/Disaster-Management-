@@ -115,6 +115,29 @@ describe('Health check & Security', () => {
     const res = await request(app).post('/api/incidents/000000000000000000000000/status').send({ status: 'verified' });
     expect([401, 403]).toContain(res.status);
   });
+
+  test('Vercel API reports missing database configuration instead of hanging', async () => {
+    const handler = require('../../api');
+    const configuredUri = process.env.MONGODB_URI;
+    delete process.env.MONGODB_URI;
+
+    const response = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    try {
+      await handler({ url: '/api/health' }, response);
+      expect(response.status).toHaveBeenCalledWith(503);
+      expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: expect.stringContaining('MONGODB_URI'),
+      }));
+    } finally {
+      if (configuredUri === undefined) delete process.env.MONGODB_URI;
+      else process.env.MONGODB_URI = configuredUri;
+    }
+  });
 });
 
 // ── Test 2: Authentication ────────────────────────────────────────────────────
@@ -315,11 +338,32 @@ describe('Authorization', () => {
     expect(assignRes.status).toBe(401);
   });
 
-  dbTest('TEST 15: Volunteer cannot access admin analytics', async () => {
-    const res = await request(app)
+  dbTest('TEST 15: Analytics summary is accessible (optionalAuth); audit requires coordinator+', async () => {
+    // Summary is now open to all (optionalAuth)
+    const summaryRes = await request(app)
       .get('/api/analytics/summary')
       .set('Authorization', `Bearer ${volunteerToken}`);
-    expect(res.status).toBe(403);
+    expect(summaryRes.status).toBe(200);
+
+    // Audit still requires coordinator+
+    const auditRes = await request(app)
+      .get('/api/analytics/audit')
+      .set('Authorization', `Bearer ${volunteerToken}`);
+    expect(auditRes.status).toBe(403);
+  });
+});
+
+describe('Public read endpoints', () => {
+  dbTest('Anonymous users can read public volunteer, inventory, and analytics views', async () => {
+    const [volunteersRes, resourcesRes, analyticsRes] = await Promise.all([
+      request(app).get('/api/volunteers'),
+      request(app).get('/api/resources'),
+      request(app).get('/api/analytics/summary'),
+    ]);
+
+    expect(volunteersRes.status).toBe(200);
+    expect(resourcesRes.status).toBe(200);
+    expect(analyticsRes.status).toBe(200);
   });
 });
 

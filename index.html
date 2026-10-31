@@ -445,6 +445,12 @@
                 class="w-full p-3.5 rounded-xl border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm text-slate-900"
                 oninput="saveDraft()"
               ></textarea>
+              <div class="mt-2 flex items-center gap-2">
+                <button type="button" id="voiceInputButton" onclick="toggleVoiceInput()" aria-pressed="false" class="text-xs bg-slate-100 hover:bg-orange-100 text-slate-700 hover:text-orange-700 font-semibold px-3 py-2 rounded-lg border border-slate-200 transition">
+                  <i class="fa-solid fa-microphone mr-1"></i><span>Speak emergency details</span>
+                </button>
+                <span class="text-[11px] text-slate-500">Voice transcription uses your browser's speech recognition.</span>
+              </div>
               <div id="messageError" class="hidden text-xs text-red-600 font-semibold mt-1">Please describe the emergency (minimum 10 characters).</div>
             </div>
 
@@ -1209,6 +1215,7 @@
     let sseSource = null;
     let capturedCoordinates = null;
     let leafletMapInstance = null;
+    let speechRecognition = null;
 
     // Chart.js references
     let urgencyChartInstance = null;
@@ -1444,7 +1451,7 @@
       }
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
       try {
         const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -1458,23 +1465,20 @@
         // Check if response is HTML (e.g. Vercel 404/502 error page instead of API response)
         const contentType = res.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
-          console.warn(`[SahyogAI] Received non-JSON response for ${endpoint} (status ${res.status}). Switching to in-browser engine.`);
-          isServerConnected = false;
-          setModeBanner(false);
-          return handleLocalMockApi(endpoint, method, body);
+          const error = new Error(`API returned a non-JSON response for ${endpoint} (HTTP ${res.status}).`);
+          error.status = res.status;
+          throw error;
         }
 
-        const data = await res.json();
-
-        // If HTTP 404 from server or route not found, fallback to local mock engine
-        if (res.status === 404) {
-          console.warn(`[SahyogAI] Endpoint ${endpoint} 404 not found on server. Using in-browser engine.`);
-          isServerConnected = false;
-          setModeBanner(false);
-          return handleLocalMockApi(endpoint, method, body);
+        let data;
+        try {
+          data = await res.json();
+        } catch (_parseError) {
+          const error = new Error(`API returned invalid JSON for ${endpoint} (HTTP ${res.status}).`);
+          error.status = res.status;
+          throw error;
         }
 
-        // If server returned 401/403/409/422 with JSON, this is a valid application error
         if (!res.ok) {
           const error = new Error(data.error || data.message || `HTTP ${res.status}`);
           error.status = res.status;
@@ -1488,12 +1492,18 @@
       } catch (err) {
         clearTimeout(timeoutId);
 
-        // If this is an intentional application error (like bad credentials 401 or conflict 409) from the live backend, bubble it up
-        if (err.status && err.status >= 400 && err.status < 500 && err.status !== 404) {
+        // HTTP errors come from the live backend and should never become local mock successes.
+        if (err.status) {
           throw err;
         }
 
-        // Network error, timeout, 404, or non-JSON HTML from hosting platform (like Vercel static)
+        if (err.name === 'AbortError') {
+          const error = new Error(`Request to ${endpoint} timed out. Please try again.`);
+          error.status = 504;
+          throw error;
+        }
+
+        // Network errors use the explicitly labeled standalone engine.
         console.warn(`[SahyogAI] Live backend unavailable (${err.message}). Using local standalone engine for ${endpoint}.`);
         isServerConnected = false;
         setModeBanner(false);
@@ -1981,17 +1991,21 @@
     async function initAuth() {
       const token = localStorage.getItem('sahyog_token');
       if (!token) {
-        currentUser = { displayName: "Demo Coordinator", role: "coordinator", username: "coordinator" };
+        currentUser = window.location.protocol === 'file:'
+          ? { displayName: "Local Demo Coordinator", role: "coordinator", username: "local-demo" }
+          : null;
         renderAuthUI(currentUser);
         return;
       }
       try {
         const res = await api('/auth/me');
-        currentUser = res.user || { displayName: "Demo Coordinator", role: "coordinator", username: "coordinator" };
+        currentUser = res.user || null;
         renderAuthUI(currentUser);
       } catch (err) {
         if (err.status === 401) localStorage.removeItem('sahyog_token');
-        currentUser = { displayName: "Demo Coordinator", role: "coordinator", username: "coordinator" };
+        currentUser = window.location.protocol === 'file:'
+          ? { displayName: "Local Demo Coordinator", role: "coordinator", username: "local-demo" }
+          : null;
         renderAuthUI(currentUser);
       }
     }
@@ -2060,6 +2074,69 @@
 
     function hasCoordinatorAccess() {
       return ['admin', 'coordinator'].includes(currentUser?.role);
+    }
+
+    function toggleVoiceInput() {
+      if (speechRecognition) {
+        speechRecognition.stop();
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        showToast('Voice input is not supported in this browser. Please type the emergency details.', 'error');
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      speechRecognition = recognition;
+      recognition.lang = currentLang === 'te' ? 'te-IN' : 'en-IN';
+      recognition.continuous = true;
+      recognition.interimResults = false;
+
+      const button = document.getElementById('voiceInputButton');
+      const resetVoiceButton = () => {
+        if (speechRecognition !== recognition) return;
+        speechRecognition = null;
+        button.setAttribute('aria-pressed', 'false');
+        button.classList.remove('bg-red-100', 'text-red-700', 'border-red-300');
+        button.classList.add('bg-slate-100', 'text-slate-700', 'border-slate-200');
+        button.innerHTML = '<i class="fa-solid fa-microphone mr-1"></i><span>Speak emergency details</span>';
+      };
+
+      recognition.onstart = () => {
+        button.setAttribute('aria-pressed', 'true');
+        button.classList.remove('bg-slate-100', 'text-slate-700', 'border-slate-200');
+        button.classList.add('bg-red-100', 'text-red-700', 'border-red-300');
+        button.innerHTML = '<i class="fa-solid fa-stop mr-1"></i><span>Stop voice input</span>';
+        showToast('Listening… speak clearly, then select Stop voice input.', 'info');
+      };
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .slice(event.resultIndex)
+          .map(result => result[0].transcript)
+          .join(' ')
+          .trim();
+        if (!transcript) return;
+
+        const input = document.getElementById('rawMessageInput');
+        input.value = `${input.value.trim()}${input.value.trim() ? ' ' : ''}${transcript}`;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      recognition.onerror = (event) => {
+        resetVoiceButton();
+        if (event.error !== 'aborted') {
+          showToast(`Voice input failed (${event.error}). Please type the emergency details.`, 'error');
+        }
+      };
+      recognition.onend = resetVoiceButton;
+
+      try {
+        recognition.start();
+      } catch (err) {
+        resetVoiceButton();
+        showToast(`Could not start voice input: ${err.message}`, 'error');
+      }
     }
 
     function toggleAddVolunteerForm(show = true) {
@@ -2204,6 +2281,14 @@
       } catch (e) {}
     }
 
+    function resetSOSForm() {
+      document.getElementById('sosForm').reset();
+      selectCategory('Medical Emergency');
+      localStorage.removeItem('sahyog_draft');
+      capturedCoordinates = null;
+      document.getElementById('gpsCoordsNotice').classList.add('hidden');
+    }
+
     async function handleTriageSubmit(e) {
       e.preventDefault();
 
@@ -2241,6 +2326,7 @@
       const submitBtn = document.getElementById('submitTriageBtn');
       submitBtn.disabled = true;
       submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Submitting & Analyzing...`;
+      let submittedIncident = null;
 
       try {
         const payload = {
@@ -2255,6 +2341,7 @@
 
         const createRes = await api('/incidents', 'POST', payload);
         const incident = createRes.data;
+        submittedIncident = incident;
 
         const triageRes = await api(`/incidents/${incident._id}/triage`, 'POST');
         const updatedIncident = triageRes.data;
@@ -2329,15 +2416,22 @@
           `;
         }
 
-        localStorage.removeItem('sahyog_draft');
+        resetSOSForm();
         showToast(`SOS Dispatched! Ref ID: ${updatedIncident.ref}`, 'success');
         fetchIncidents();
 
       } catch (err) {
         document.getElementById('aiLoadingState').classList.add('hidden');
         document.getElementById('aiErrorState').classList.remove('hidden');
-        document.getElementById('aiErrorMessage').textContent = err.message || 'Submission failed.';
-        showToast(err.message, 'error');
+        const errorMessage = submittedIncident
+          ? `Report ${submittedIncident.ref} was received, but triage did not finish. It is already on the Dispatch Board; do not submit it again. ${err.message}`
+          : err.message || 'Submission failed.';
+        document.getElementById('aiErrorMessage').textContent = errorMessage;
+        showToast(errorMessage, 'error');
+        if (submittedIncident) {
+          resetSOSForm();
+          navigate('result');
+        }
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<i class="fa-solid fa-microchip"></i> <span data-i18n="btn_submit_triage">${currentLang === 'te' ? 'SOS నమోదు చేసి AI ద్వారా విశ్లేషించండి' : 'Submit SOS & Run AI Triage'}</span>`;
@@ -2947,12 +3041,13 @@
     // --- 13. ANALYTICS & CHARTS MODULE ---
     async function loadAnalytics() {
       try {
+        const canViewAudit = ['admin', 'coordinator'].includes(currentUser?.role);
         const [sumRes, catRes, urgRes, trendRes, auditRes] = await Promise.all([
           api('/analytics/summary'),
           api('/analytics/incidents-by-category'),
           api('/analytics/incidents-by-urgency'),
           api('/analytics/incidents-trend?days=7'),
-          api('/analytics/audit?limit=8')
+          canViewAudit ? api('/analytics/audit?limit=8') : Promise.resolve({ data: [] })
         ]);
 
         const s = sumRes.data;
@@ -2975,6 +3070,9 @@
 
         const tbody = document.getElementById('auditTableBody');
         tbody.innerHTML = '';
+        if (!canViewAudit) {
+          tbody.innerHTML = '<tr><td colspan="4" class="py-4 px-3 text-center text-slate-500">Sign in as a coordinator or administrator to view the audit trail.</td></tr>';
+        }
         (auditRes.data || []).forEach(ev => {
           const tr = document.createElement('tr');
           tr.className = 'hover:bg-slate-50';
@@ -3053,7 +3151,7 @@
       trendChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: data.map(d => d._id.slice(5)),
+          labels: data.map(d => (typeof d._id === 'string' && d._id.length >= 5) ? d._id.slice(5) : String(d._id || '')),
           datasets: [{
             label: 'Incidents Reported',
             data: data.map(d => d.count),

@@ -11,14 +11,14 @@ async function connectDB() {
 
   try {
     await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 3000,
+      serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
     });
     isConnected = true;
     console.log(`✅ MongoDB connected: ${mongoose.connection.host}`);
     return mongoose.connection;
   } catch (err) {
-    console.error(`❌ MongoDB connection failed (${uri}): ${err.message}`);
+    console.error(`❌ MongoDB connection failed: ${err.message}`);
     throw err;
   }
 }
@@ -34,3 +34,5 @@ mongoose.connection.on('disconnected', () => {
 });
 
 module.exports = connectDB;
+module.exports.connection = mongoose.connection;
+module.exports.isConnected = () => mongoose.connection.readyState === 1;
