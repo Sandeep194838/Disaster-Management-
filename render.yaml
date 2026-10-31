@@ -1,0 +1,36 @@
+# render.yaml — Render Blueprint for SahyogAI Backend
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: sahyogai-api
+    runtime: node
+    region: singapore  # closest to India
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node src/app.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DEMO_MODE
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true   # Render auto-generates a random 256-bit secret
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      - key: RATE_LIMIT_MAX
+        value: "200"
+      - key: AUTH_RATE_LIMIT_MAX
+        value: "20"
+      - key: MONGODB_URI
+        sync: false           # you'll paste your MongoDB Atlas URI manually
+      - key: GEMINI_API_KEY
+        sync: false           # optional — paste if you have one
+      - key: ALLOWED_ORIGINS
+        sync: false           # your Vercel frontend URL
+

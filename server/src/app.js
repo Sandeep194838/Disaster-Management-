@@ -39,6 +39,7 @@ app.use(cors({
       origin.includes('localhost') ||
       origin.includes('127.0.0.1') ||
       origin.endsWith('.vercel.app') ||
+      origin.endsWith('.onrender.com') ||
       allowedOrigins.includes(origin)
     ) {
       return callback(null, true);
