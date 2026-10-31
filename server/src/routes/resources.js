@@ -5,6 +5,7 @@ const Joi = require('joi');
 const mongoose = require('mongoose');
 const Resource = require('../models/Resource');
 const audit = require('../services/auditService');
+const { broadcast } = require('../utils/sse');
 const { authenticate, authorize } = require('../middleware/auth');
 const { asyncHandler, createError } = require('../middleware/errorHandler');
 
@@ -16,7 +17,7 @@ const createResourceSchema = Joi.object({
   name:              Joi.string().min(2).max(200).required(),
   resourceType:      Joi.string().valid(...RESOURCE_TYPES).required(),
   unit:              Joi.string().min(1).max(50).required(),
-  quantityTotal:     Joi.number().min(0).required(),
+  quantityTotal:     Joi.number().integer().min(0).required(),
   storageLocation:   Joi.string().max(300).allow('', null),
   responsibleOrg:    Joi.string().max(200).allow('', null),
   lowStockThreshold: Joi.number().min(0).default(10),
@@ -25,7 +26,7 @@ const createResourceSchema = Joi.object({
 
 const movementSchema = Joi.object({
   action:      Joi.string().valid('reserve', 'dispatch', 'add_stock', 'return', 'mark_damaged').required(),
-  quantity:    Joi.number().min(1).required(),
+  quantity:    Joi.number().integer().min(1).required(),
   note:        Joi.string().max(500).allow('', null),
   incidentRef: Joi.string().max(50).allow('', null),
 });
@@ -75,6 +76,7 @@ router.post('/', authenticate, authorize('admin', 'coordinator'), asyncHandler(a
     changes: { name: resource.name, quantity: resource.quantityTotal },
     isDemo: resource.isDemo, ipAddress: req.ip,
   });
+  broadcast('resource:updated', { resourceId: String(resource._id), name: resource.name });
 
   const result = resource.toObject({ virtuals: true });
   res.status(201).json({ success: true, data: result });
@@ -95,7 +97,7 @@ router.post('/:id/movement', authenticate, authorize('admin', 'coordinator'), as
     const resource = await Resource.findById(req.params.id).session(session);
     if (!resource) throw createError('Resource not found.', 404);
 
-    const avail = resource.quantityTotal - resource.quantityReserved - resource.quantityDispatched;
+    const avail = Math.max(0, resource.quantityTotal - resource.quantityReserved - resource.quantityDispatched);
 
     switch (value.action) {
       case 'reserve':
@@ -104,9 +106,8 @@ router.post('/:id/movement', authenticate, authorize('admin', 'coordinator'), as
         break;
 
       case 'dispatch':
+        if (value.quantity > avail) throw createError(`Only ${avail} ${resource.unit} available. Cannot dispatch ${value.quantity}.`, 409);
         if (value.quantity > resource.quantityReserved) {
-          // Allow dispatch from available stock if not pre-reserved
-          if (value.quantity > avail) throw createError(`Insufficient stock. Available: ${avail} ${resource.unit}.`, 409);
           resource.quantityDispatched += value.quantity;
         } else {
           resource.quantityReserved -= value.quantity;
@@ -123,9 +124,7 @@ router.post('/:id/movement', authenticate, authorize('admin', 'coordinator'), as
         break;
 
       case 'mark_damaged':
-        if (value.quantity > resource.quantityTotal) {
-          throw createError(`Cannot mark more than total stock (${resource.quantityTotal}) as damaged.`, 409);
-        }
+        if (value.quantity > avail) throw createError(`Only ${avail} ${resource.unit} available. Cannot mark ${value.quantity} as damaged.`, 409);
         resource.quantityTotal -= value.quantity;
         resource.quantityDamaged = (resource.quantityDamaged || 0) + value.quantity;
         break;
@@ -156,6 +155,7 @@ router.post('/:id/movement', authenticate, authorize('admin', 'coordinator'), as
       changes: { action: value.action, quantity: value.quantity, incidentRef: value.incidentRef },
       isDemo: resource.isDemo, ipAddress: req.ip,
     });
+    broadcast('resource:updated', { resourceId: String(resource._id), name: resource.name });
 
     const result = resource.toObject({ virtuals: true });
     res.json({ success: true, data: result });
@@ -169,4 +169,3 @@ router.post('/:id/movement', authenticate, authorize('admin', 'coordinator'), as
 }));
 
 module.exports = router;
-

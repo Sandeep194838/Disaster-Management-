@@ -384,6 +384,31 @@ describe('Resource inventory', () => {
     expect(res.body.data.quantityReserved).toBe(50);
     expect(res.body.data.quantityAvailable).toBe(50);
   });
+
+  dbTest('Dispatch cannot exceed available stock even when stock is reserved', async () => {
+    const authorization = `Bearer ${coordinatorToken}`;
+    const reserveRes = await request(app)
+      .post(`/api/resources/${resourceId}/movement`)
+      .set('Authorization', authorization)
+      .send({ action: 'reserve', quantity: 40 });
+    expect(reserveRes.status).toBe(200);
+    expect(reserveRes.body.data.quantityAvailable).toBe(10);
+
+    const dispatchRes = await request(app)
+      .post(`/api/resources/${resourceId}/movement`)
+      .set('Authorization', authorization)
+      .send({ action: 'dispatch', quantity: 11 });
+    expect(dispatchRes.status).toBe(409);
+    expect(dispatchRes.body.error).toContain('Only 10');
+
+    const restockRes = await request(app)
+      .post(`/api/resources/${resourceId}/movement`)
+      .set('Authorization', authorization)
+      .send({ action: 'add_stock', quantity: 20 });
+    expect(restockRes.status).toBe(200);
+    expect(restockRes.body.data.quantityTotal).toBe(120);
+    expect(restockRes.body.data.quantityAvailable).toBe(30);
+  });
 });
 
 // ── Test 9: Analytics ─────────────────────────────────────────────────────────
@@ -395,6 +420,9 @@ describe('Analytics', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.incidents.total).toBeGreaterThan(0);
     expect(typeof res.body.data.incidents.total).toBe('number');
+    expect(typeof res.body.data.incidents.confirmedDuplicates).toBe('number');
+    expect(typeof res.body.data.incidents.duplicateRate).toBe('number');
+    expect(typeof res.body.data.resources.available).toBe('number');
   });
 });
 

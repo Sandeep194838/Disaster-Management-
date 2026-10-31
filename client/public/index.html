@@ -802,15 +802,80 @@
             Tracked depot inventories: drinking water, food rations, boats, and first-aid kits with atomic reserve/dispatch.
           </p>
         </div>
-        <button onclick="fetchResources()" class="text-xs bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-xl font-semibold self-start sm:self-center">
-          <i class="fa-solid fa-rotate text-slate-500 mr-1"></i> Refresh Stock
-        </button>
+        <div class="flex items-center gap-2 self-start sm:self-center">
+          <button id="resourceCreateButton" onclick="openCreateResourceModal()" class="hidden text-xs bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-xl font-bold">
+            <i class="fa-solid fa-plus mr-1"></i> Create New Goods
+          </button>
+          <button onclick="fetchResources()" class="text-xs bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-xl font-semibold">
+            <i class="fa-solid fa-rotate text-slate-500 mr-1"></i> Refresh Stock
+          </button>
+        </div>
       </div>
 
       <div id="resourcesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <!-- Rendered by JS -->
       </div>
     </section>
+
+    <!-- Inventory goods creation and restock modal -->
+    <div id="resourceModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <form onsubmit="submitResourceModal(event)" class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5">
+        <div class="flex items-start justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h2 id="resourceModalTitle" class="text-xl font-black text-slate-900">Create New Goods</h2>
+            <p id="resourceModalDescription" class="text-xs text-slate-500 mt-1">Add a new product to the relief inventory.</p>
+          </div>
+          <button type="button" onclick="closeResourceModal()" aria-label="Close dialog" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <div id="resourceCreateFields" class="space-y-4">
+          <label class="block text-xs font-semibold text-slate-700">
+            Product Name
+            <input id="resourceName" type="text" maxlength="200" required class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-500">
+          </label>
+          <label class="block text-xs font-semibold text-slate-700">
+            Category
+            <select id="resourceType" required class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-500">
+              <option>Drinking Water</option>
+              <option>Food Packets</option>
+              <option>First-Aid Kits</option>
+              <option>Medicines</option>
+              <option>Blankets</option>
+              <option>Temporary Shelters</option>
+              <option>Rescue Equipment</option>
+              <option>Boats</option>
+              <option>Transport Vehicles</option>
+              <option>Communication Equipment</option>
+              <option>Baby Supplies</option>
+              <option>Sanitation Kits</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="block text-xs font-semibold text-slate-700">
+              Unit Type
+              <input id="resourceUnit" type="text" maxlength="50" placeholder="e.g. packets, litres, kits" required class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-500">
+            </label>
+            <label class="block text-xs font-semibold text-slate-700">
+              Warehouse Location
+              <input id="resourceLocation" type="text" maxlength="300" required class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-500">
+            </label>
+          </div>
+        </div>
+
+        <label class="block text-xs font-semibold text-slate-700">
+          <span id="resourceQuantityLabel">Initial Quantity Received</span>
+          <input id="resourceQuantity" type="number" min="1" step="1" value="1" required class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-500">
+        </label>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeResourceModal()" class="text-xs bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-xl font-semibold">Cancel</button>
+          <button id="resourceModalSubmit" type="submit" class="text-xs bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl font-bold">Create Goods</button>
+        </div>
+      </form>
+    </div>
 
     <!-- ============================================== -->
     <!-- SCREEN 6: DISASTER ANALYTICS DASHBOARD         -->
@@ -833,7 +898,35 @@
         </div>
       </div>
 
-      <!-- KPI Summary Cards -->
+        <div class="rounded-2xl bg-slate-900 text-white p-5 sm:p-6 shadow-sm">
+          <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-4">
+            <div>
+              <p class="text-[11px] uppercase tracking-wider text-orange-300 font-bold">Visakhapatnam Relief Coordination</p>
+              <h2 class="text-lg font-black mt-1">Live Operational Overview</h2>
+            </div>
+            <p id="analyticsUpdated" class="text-[11px] text-slate-400">Waiting for live data</p>
+          </div>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] text-slate-300">Available stock units</p>
+              <p id="overviewAvailableStock" class="text-2xl font-black mt-1">0</p>
+            </div>
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] text-slate-300">Active critical SOS</p>
+              <p id="overviewCriticalSOS" class="text-2xl font-black mt-1 text-red-300">0</p>
+            </div>
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] text-slate-300">Resolved reports</p>
+              <p id="overviewResolved" class="text-2xl font-black mt-1 text-emerald-300">0</p>
+            </div>
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] text-slate-300">Confirmed duplicates filtered</p>
+              <p class="text-2xl font-black mt-1"><span id="overviewDuplicateCount">0</span><span id="overviewDuplicateRate" class="text-sm text-purple-200 ml-2">0%</span></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI Summary Cards -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
           <div class="text-xs text-slate-500 font-semibold">Total Reports</div>
@@ -1608,19 +1701,54 @@
         return { success: true, data: db.resources };
       }
 
+      if (endpoint === '/resources' && method === 'POST') {
+        const resource = {
+          _id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          ref: `RES-${Date.now().toString(36).toUpperCase()}`,
+          name: body.name.trim(),
+          resourceType: body.resourceType,
+          unit: body.unit.trim(),
+          quantityTotal: Number(body.quantityTotal),
+          quantityReserved: 0,
+          quantityDispatched: 0,
+          quantityDamaged: 0,
+          quantityAvailable: Number(body.quantityTotal),
+          storageLocation: body.storageLocation.trim(),
+          isDemo: true,
+        };
+        db.resources.unshift(resource);
+        db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || 'Coordinator', action: 'resource:created', entityRef: resource.name });
+        saveLocalDB(db);
+        return { success: true, data: resource };
+      }
+
       // Resource movement
       if (endpoint.includes('/movement') && method === 'POST') {
         const resId = endpoint.split('/')[2];
         const r = db.resources.find(x => x._id === resId);
         if (r) {
-          const avail = r.quantityTotal - r.quantityReserved - r.quantityDispatched;
+          const quantity = Number(body.quantity);
+          if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new Error('Please enter a valid positive whole number.');
+          const avail = Math.max(0, r.quantityTotal - r.quantityReserved - r.quantityDispatched);
           if (body.action === 'reserve') {
-            if (body.quantity > avail) throw new Error(`Only ${avail} ${r.unit} available. Cannot reserve.`);
-            r.quantityReserved += body.quantity;
+            if (quantity > avail) throw new Error(`Only ${avail} ${r.unit} available. Cannot reserve.`);
+            r.quantityReserved += quantity;
           } else if (body.action === 'dispatch') {
-            r.quantityDispatched += body.quantity;
-            r.quantityReserved = Math.max(0, r.quantityReserved - body.quantity);
+            if (quantity > avail) throw new Error(`Only ${avail} ${r.unit} available. Cannot dispatch.`);
+            r.quantityDispatched += quantity;
+            r.quantityReserved = Math.max(0, r.quantityReserved - quantity);
+          } else if (body.action === 'add_stock') {
+            r.quantityTotal += quantity;
+          } else if (body.action === 'mark_damaged') {
+            if (quantity > avail) throw new Error(`Only ${avail} ${r.unit} available. Cannot mark as damaged.`);
+            r.quantityTotal -= quantity;
+            r.quantityDamaged = (r.quantityDamaged || 0) + quantity;
+          } else if (body.action === 'return') {
+            r.quantityDispatched = Math.max(0, r.quantityDispatched - quantity);
+          } else {
+            throw new Error('Unsupported inventory action.');
           }
+          r.quantityAvailable = Math.max(0, r.quantityTotal - r.quantityReserved - r.quantityDispatched);
           db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || "Coordinator", action: `resource:${body.action}`, entityRef: r.name });
           saveLocalDB(db);
           return { success: true, data: r };
@@ -1630,17 +1758,30 @@
       // Analytics
       if (endpoint.includes('/analytics/summary')) {
         const total = db.incidents.length;
-        const crit = db.incidents.filter(i => i.effectiveUrgency === 'Critical').length;
-        const awaiting = db.incidents.filter(i => ['submitted', 'under_review', 'awaiting_assignment'].includes(i.status)).length;
-        const prog = db.incidents.filter(i => ['assigned', 'in_progress'].includes(i.status)).length;
-        const volAvail = db.volunteers.filter(v => v.profile?.availability === 'available').length;
+        const closedStatuses = ['assistance_delivered', 'resolved', 'closed', 'cancelled'];
+        const crit = db.incidents.filter(i => i.effectiveUrgency === 'Critical' && !closedStatuses.includes(i.status)).length;
+        const awaiting = db.incidents.filter(i => ['submitted', 'under_review', 'verified', 'awaiting_assignment'].includes(i.status)).length;
+        const prog = db.incidents.filter(i => ['assigned', 'acknowledged', 'in_progress'].includes(i.status)).length;
+        const resolved = db.incidents.filter(i => ['assistance_delivered', 'resolved', 'closed'].includes(i.status)).length;
+        const confirmedDuplicates = db.incidents.filter(i => i.duplicateTag === 'confirmed_duplicate').length;
+        const volAvail = db.volunteers.filter(v => v.isActive !== false && v.profile?.availability === 'available').length;
         const dispatched = db.resources.reduce((sum, r) => sum + (r.quantityDispatched || 0), 0);
+        const available = db.resources.reduce((sum, r) => sum + Math.max(0, (r.quantityTotal || 0) - (r.quantityReserved || 0) - (r.quantityDispatched || 0)), 0);
         return {
           success: true,
           data: {
-            incidents: { total, critical: crit, awaitingAssignment: awaiting, inProgress: prog },
+            incidents: {
+              total,
+              open: db.incidents.filter(i => !closedStatuses.includes(i.status)).length,
+              critical: crit,
+              awaitingAssignment: awaiting,
+              inProgress: prog,
+              resolved,
+              confirmedDuplicates,
+              duplicateRate: total ? (confirmedDuplicates / total) * 100 : 0,
+            },
             volunteers: { available: volAvail },
-            resources: { dispatched }
+            resources: { dispatched, available }
           }
         };
       }
@@ -1658,16 +1799,24 @@
       }
 
       if (endpoint.includes('/analytics/incidents-trend')) {
+        const daysParam = Number(new URLSearchParams(endpoint.split('?')[1] || '').get('days')) || 7;
+        const days = Math.min(90, Math.max(1, Math.floor(daysParam)));
+        const countsByDay = new Map();
+        db.incidents.forEach(incident => {
+          if (!incident.createdAt) return;
+          const day = new Date(incident.createdAt).toISOString().slice(0, 10);
+          countsByDay.set(day, (countsByDay.get(day) || 0) + 1);
+        });
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+        const data = Array.from({ length: days }, (_, index) => {
+          const date = new Date(today);
+          date.setUTCDate(today.getUTCDate() - (days - index - 1));
+          const key = date.toISOString().slice(0, 10);
+          return { _id: key, count: countsByDay.get(key) || 0 };
+        });
         return {
-          success: true,
-          data: [
-            { _id: "2026-10-25", count: 4 },
-            { _id: "2026-10-26", count: 7 },
-            { _id: "2026-10-27", count: 12 },
-            { _id: "2026-10-28", count: 19 },
-            { _id: "2026-10-29", count: 24 },
-            { _id: "2026-10-30", count: db.incidents.length }
-          ]
+          success: true, data
         };
       }
 
@@ -2261,16 +2410,17 @@
 
     function updateCounters(items) {
       const total = items.length;
-      const critical = items.filter(t => t.effectiveUrgency === 'Critical' && !['resolved', 'closed', 'cancelled'].includes(t.status)).length;
-      const claimed = items.filter(t => ['assigned', 'in_progress'].includes(t.status)).length;
-      const resolved = items.filter(t => ['assistance_delivered', 'resolved'].includes(t.status)).length;
+      const terminalStatuses = ['assistance_delivered', 'resolved', 'closed', 'cancelled'];
+      const critical = items.filter(t => t.effectiveUrgency === 'Critical' && !terminalStatuses.includes(t.status)).length;
+      const claimed = items.filter(t => ['assigned', 'acknowledged', 'in_progress'].includes(t.status)).length;
+      const resolved = items.filter(t => ['assistance_delivered', 'resolved', 'closed'].includes(t.status)).length;
 
       document.getElementById('statTotalCount').textContent = total;
       document.getElementById('statCriticalCount').textContent = critical;
       document.getElementById('statClaimedCount').textContent = claimed;
       document.getElementById('statResolvedCount').textContent = resolved;
 
-      const activeUnresolved = items.filter(t => !['resolved', 'closed', 'cancelled'].includes(t.status)).length;
+      const activeUnresolved = items.filter(t => !terminalStatuses.includes(t.status)).length;
       document.getElementById('activeCountBadge').textContent = activeUnresolved;
       document.getElementById('mobileActiveCount').textContent = activeUnresolved;
     }
@@ -2564,6 +2714,7 @@
     // --- 12. RELIEF INVENTORY MODULE ---
     async function fetchResources() {
       const grid = document.getElementById('resourcesGrid');
+      document.getElementById('resourceCreateButton').classList.toggle('hidden', !hasCoordinatorAccess());
       grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>Loading inventory...</div>';
 
       try {
@@ -2579,6 +2730,17 @@
         resourcesList.forEach(r => {
           const avail = r.quantityAvailable !== undefined ? r.quantityAvailable : Math.max(0, r.quantityTotal - r.quantityReserved - r.quantityDispatched);
           const isLow = avail <= (r.lowStockThreshold || 10);
+          const managementActions = hasCoordinatorAccess()
+            ? `<button onclick="openRestockResourceModal('${r._id}')" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold text-xs py-1.5 rounded-xl transition">
+                <i class="fa-solid fa-plus mr-1"></i>Restock
+              </button>
+              <button onclick="handleResourceMovement('${r._id}', 'reserve')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs py-1.5 rounded-xl transition">
+                Reserve
+              </button>
+              <button onclick="handleResourceMovement('${r._id}', 'dispatch')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-1.5 rounded-xl transition">
+                Dispatch
+              </button>`
+            : '';
 
           const card = document.createElement('div');
           card.className = 'bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4';
@@ -2611,29 +2773,119 @@
               <div><strong>Unit:</strong> ${escapeHtml(r.unit)}</div>
             </div>
 
-            <div class="pt-2 border-t border-slate-100 flex items-center gap-2">
-              <button onclick="handleResourceMovement('${r._id}', 'reserve')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs py-1.5 rounded-xl transition">
-                Reserve
-              </button>
-              <button onclick="handleResourceMovement('${r._id}', 'dispatch')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-1.5 rounded-xl transition">
-                Dispatch
-              </button>
-            </div>
+            ${managementActions ? `<div class="pt-2 border-t border-slate-100 flex items-center gap-2">${managementActions}</div>` : ''}
           `;
           grid.appendChild(card);
         });
 
       } catch (err) {
-        grid.innerHTML = `<div class="col-span-full py-12 text-center text-red-500">Could not load inventory: ${err.message}</div>`;
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-red-500">Could not load inventory: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    let resourceModalMode = 'create';
+    let resourceModalResourceId = null;
+
+    function openCreateResourceModal() {
+      if (!hasCoordinatorAccess()) return;
+      resourceModalMode = 'create';
+      resourceModalResourceId = null;
+      document.getElementById('resourceModalTitle').textContent = 'Create New Goods';
+      document.getElementById('resourceModalDescription').textContent = 'Add a new product to the relief inventory.';
+      document.getElementById('resourceCreateFields').classList.remove('hidden');
+      document.getElementById('resourceQuantityLabel').textContent = 'Initial Quantity Received';
+      document.getElementById('resourceModalSubmit').textContent = 'Create Goods';
+      document.getElementById('resourceName').value = '';
+      document.getElementById('resourceType').value = 'Drinking Water';
+      document.getElementById('resourceUnit').value = '';
+      document.getElementById('resourceLocation').value = '';
+      document.getElementById('resourceQuantity').value = '1';
+      ['resourceName', 'resourceType', 'resourceUnit', 'resourceLocation'].forEach(id => {
+        document.getElementById(id).disabled = false;
+      });
+      document.getElementById('resourceModal').classList.remove('hidden');
+    }
+
+    function openRestockResourceModal(resourceId) {
+      if (!hasCoordinatorAccess()) return;
+      const resource = resourcesList.find(item => String(item._id) === String(resourceId));
+      if (!resource) {
+        showToast('Inventory item could not be found. Refresh the stock list and try again.', 'error');
+        return;
+      }
+      resourceModalMode = 'restock';
+      resourceModalResourceId = resourceId;
+      document.getElementById('resourceModalTitle').textContent = `Restock ${resource.name}`;
+      document.getElementById('resourceModalDescription').textContent = 'Enter the quantity received to increase current stock.';
+      document.getElementById('resourceCreateFields').classList.add('hidden');
+      ['resourceName', 'resourceType', 'resourceUnit', 'resourceLocation'].forEach(id => {
+        document.getElementById(id).disabled = true;
+      });
+      document.getElementById('resourceQuantityLabel').textContent = `Received Quantity (${resource.unit})`;
+      document.getElementById('resourceModalSubmit').textContent = 'Add Stock';
+      document.getElementById('resourceQuantity').value = '1';
+      document.getElementById('resourceModal').classList.remove('hidden');
+    }
+
+    function closeResourceModal() {
+      document.getElementById('resourceModal').classList.add('hidden');
+    }
+
+    async function submitResourceModal(event) {
+      event.preventDefault();
+      if (!hasCoordinatorAccess()) return;
+
+      const quantity = Number(document.getElementById('resourceQuantity').value);
+      if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+        showToast('Please enter a valid positive whole number.', 'error');
+        return;
+      }
+
+      const submitButton = document.getElementById('resourceModalSubmit');
+      submitButton.disabled = true;
+      try {
+        if (resourceModalMode === 'create') {
+          await api('/resources', 'POST', {
+            name: document.getElementById('resourceName').value.trim(),
+            resourceType: document.getElementById('resourceType').value,
+            quantityTotal: quantity,
+            unit: document.getElementById('resourceUnit').value.trim(),
+            storageLocation: document.getElementById('resourceLocation').value.trim(),
+          });
+          showToast('New goods added to the inventory.', 'success');
+        } else {
+          await api(`/resources/${resourceModalResourceId}/movement`, 'POST', {
+            action: 'add_stock',
+            quantity,
+            note: 'Manual stock restock',
+          });
+          showToast(`Stock increased by ${quantity} units.`, 'success');
+        }
+        closeResourceModal();
+        await fetchResources();
+        refreshAnalyticsIfVisible();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        submitButton.disabled = false;
       }
     }
 
     async function handleResourceMovement(resourceId, action) {
+      if (!hasCoordinatorAccess()) return;
       const qtyStr = prompt(`Enter quantity to ${action}:`, "10");
       if (!qtyStr) return;
-      const qty = parseInt(qtyStr);
-      if (isNaN(qty) || qty <= 0) {
-        showToast('Please enter a valid positive quantity.', 'error');
+      const qty = Number(qtyStr);
+      if (!Number.isSafeInteger(qty) || qty <= 0) {
+        showToast('Please enter a valid positive whole number.', 'error');
+        return;
+      }
+      const resource = resourcesList.find(item => String(item._id) === String(resourceId));
+      const available = resource?.quantityAvailable !== undefined
+        ? resource.quantityAvailable
+        : resource ? Math.max(0, resource.quantityTotal - resource.quantityReserved - resource.quantityDispatched) : null;
+      if (available !== null && ['reserve', 'dispatch', 'mark_damaged'].includes(action) && qty > available) {
+        showToast(`Only ${available} ${resource.unit} currently available.`, 'error');
         return;
       }
       try {
@@ -2643,9 +2895,16 @@
           note: `Manual ${action}`
         });
         showToast(`Successfully processed ${action} for ${qty} units.`, 'success');
-        fetchResources();
+        await fetchResources();
+        refreshAnalyticsIfVisible();
       } catch (err) {
         showToast(err.message, 'error');
+      }
+    }
+
+    function refreshAnalyticsIfVisible() {
+      if (!document.getElementById('screen-analytics').classList.contains('hidden')) {
+        loadAnalytics();
       }
     }
 
@@ -2667,6 +2926,12 @@
         document.getElementById('kpiProgress').textContent = s.incidents?.inProgress || 0;
         document.getElementById('kpiVolAvail').textContent = s.volunteers?.available || 0;
         document.getElementById('kpiDispatched').textContent = s.resources?.dispatched || 0;
+        document.getElementById('overviewAvailableStock').textContent = (s.resources?.available || 0).toLocaleString();
+        document.getElementById('overviewCriticalSOS').textContent = s.incidents?.critical || 0;
+        document.getElementById('overviewResolved').textContent = s.incidents?.resolved || 0;
+        document.getElementById('overviewDuplicateCount').textContent = s.incidents?.confirmedDuplicates || 0;
+        document.getElementById('overviewDuplicateRate').textContent = `${(s.incidents?.duplicateRate || 0).toFixed(1)}%`;
+        document.getElementById('analyticsUpdated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
 
         renderUrgencyChart(urgRes.data || []);
         renderCategoryChart(catRes.data || []);
@@ -2787,25 +3052,42 @@
           const data = JSON.parse(e.data);
           showToast(`⚡ New SOS Dispatched: ${data.incident?.ref}`, 'info');
           fetchIncidents();
+          refreshAnalyticsIfVisible();
         });
 
         sseSource.addEventListener('incident:status_changed', (e) => {
           const data = JSON.parse(e.data);
           showToast(`Status updated on ${data.incidentRef} → ${formatStatus(data.status)}`, 'info');
           fetchIncidents();
+          refreshAnalyticsIfVisible();
+        });
+
+        ['incident:updated', 'incident:triage_complete'].forEach(eventName => {
+          sseSource.addEventListener(eventName, () => {
+            refreshAnalyticsIfVisible();
+          });
         });
 
         sseSource.addEventListener('assignment:created', (e) => {
           const data = JSON.parse(e.data);
           showToast(`Volunteer assigned to ${data.incidentRef}`, 'success');
           fetchIncidents();
+          refreshAnalyticsIfVisible();
         });
 
         sseSource.addEventListener('assignment:updated', () => {
           fetchIncidents();
+          refreshAnalyticsIfVisible();
           if (!document.getElementById('screen-volunteers').classList.contains('hidden')) {
             fetchVolunteers();
           }
+        });
+
+        sseSource.addEventListener('resource:updated', () => {
+          if (!document.getElementById('screen-resources').classList.contains('hidden')) {
+            fetchResources();
+          }
+          refreshAnalyticsIfVisible();
         });
 
         ['volunteer:created', 'volunteer:deactivated', 'volunteer:reactivated'].forEach(eventName => {
@@ -2813,6 +3095,7 @@
             if (!document.getElementById('screen-volunteers').classList.contains('hidden')) {
               fetchVolunteers();
             }
+            refreshAnalyticsIfVisible();
           });
         });
 

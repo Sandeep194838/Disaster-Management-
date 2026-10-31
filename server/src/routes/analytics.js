@@ -10,6 +10,10 @@ const { authenticate, authorize } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 const router = express.Router();
+const CLOSED_STATUSES = ['assistance_delivered', 'resolved', 'closed', 'cancelled'];
+const availableStockExpression = {
+  $subtract: ['$quantityTotal', { $add: ['$quantityReserved', '$quantityDispatched'] }],
+};
 
 // Only coordinators, analysts, admins can see analytics
 router.use(authenticate, authorize('admin', 'coordinator', 'analyst'));
@@ -29,6 +33,7 @@ router.get('/summary', asyncHandler(async (req, res) => {
     awaitingAssignment,
     inProgress,
     resolved,
+    confirmedDuplicates,
     totalVolunteers,
     availableVolunteers,
     assignedVolunteers,
@@ -36,12 +41,13 @@ router.get('/summary', asyncHandler(async (req, res) => {
     resourceStats,
   ] = await Promise.all([
     Incident.countDocuments(demoFilter),
-    Incident.countDocuments({ ...demoFilter, status: { $nin: ['resolved', 'closed', 'cancelled'] } }),
-    Incident.countDocuments({ ...demoFilter, effectiveUrgency: 'Critical', status: { $nin: ['resolved', 'closed', 'cancelled'] } }),
-    Incident.countDocuments({ ...demoFilter, effectiveUrgency: 'High', status: { $nin: ['resolved', 'closed', 'cancelled'] } }),
+    Incident.countDocuments({ ...demoFilter, status: { $nin: CLOSED_STATUSES } }),
+    Incident.countDocuments({ ...demoFilter, effectiveUrgency: 'Critical', status: { $nin: CLOSED_STATUSES } }),
+    Incident.countDocuments({ ...demoFilter, effectiveUrgency: 'High', status: { $nin: CLOSED_STATUSES } }),
     Incident.countDocuments({ ...demoFilter, status: { $in: ['awaiting_assignment', 'verified', 'submitted', 'under_review'] } }),
     Incident.countDocuments({ ...demoFilter, status: { $in: ['in_progress', 'acknowledged', 'assigned'] } }),
-    Incident.countDocuments({ ...demoFilter, status: { $in: ['resolved', 'closed'] } }),
+    Incident.countDocuments({ ...demoFilter, status: { $in: ['assistance_delivered', 'resolved', 'closed'] } }),
+    Incident.countDocuments({ ...demoFilter, duplicateTag: 'confirmed_duplicate' }),
     User.countDocuments({ role: 'volunteer', isActive: true }),
     User.countDocuments({ role: 'volunteer', isActive: true, 'profile.availability': 'available' }),
     User.countDocuments({ role: 'volunteer', isActive: true, 'profile.availability': 'assigned' }),
@@ -52,7 +58,7 @@ router.get('/summary', asyncHandler(async (req, res) => {
         _id: null,
         totalDispatched: { $sum: '$quantityDispatched' },
         totalReserved: { $sum: '$quantityReserved' },
-        totalAvailable: { $sum: { $subtract: ['$quantityTotal', { $add: ['$quantityReserved', '$quantityDispatched'] }] } },
+        totalAvailable: { $sum: { $cond: [{ $gt: [availableStockExpression, 0] }, availableStockExpression, 0] } },
       }},
     ]),
   ]);
@@ -62,7 +68,12 @@ router.get('/summary', asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: {
-      incidents: { total: totalIncidents, open: openIncidents, critical: criticalIncidents, high: highIncidents, awaitingAssignment, inProgress, resolved },
+      incidents: {
+        total: totalIncidents, open: openIncidents, critical: criticalIncidents, high: highIncidents,
+        awaitingAssignment, inProgress, resolved,
+        confirmedDuplicates,
+        duplicateRate: totalIncidents ? (confirmedDuplicates / totalIncidents) * 100 : 0,
+      },
       volunteers: { total: totalVolunteers, available: availableVolunteers, assigned: assignedVolunteers },
       resources: { total: totalResources, dispatched: resStats.totalDispatched, reserved: resStats.totalReserved, available: resStats.totalAvailable },
     },
@@ -135,7 +146,7 @@ router.get('/resource-usage', asyncHandler(async (req, res) => {
       _id: '$resourceType',
       totalDispatched: { $sum: '$quantityDispatched' },
       totalReserved: { $sum: '$quantityReserved' },
-      totalAvailable: { $sum: { $subtract: ['$quantityTotal', { $add: ['$quantityReserved', '$quantityDispatched'] }] } },
+      totalAvailable: { $sum: { $cond: [{ $gt: [availableStockExpression, 0] }, availableStockExpression, 0] } },
     }},
     { $sort: { totalDispatched: -1 } },
   ]);
@@ -163,4 +174,3 @@ router.get('/audit', authorize('admin', 'coordinator'), asyncHandler(async (req,
 }));
 
 module.exports = router;
-
