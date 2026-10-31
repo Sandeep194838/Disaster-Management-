@@ -84,13 +84,16 @@ npm run seed
 
 This creates:
 - `admin` / `Admin@2024!` — Administrator
-- `coordinator` / `Coord@2024!` — Emergency Coordinator  
+- `coordinator` / `Coord@2024!` — Emergency Coordinator
 - `analyst` / `Analyst@2024!` — Read-only Analyst
 - `kiran_nss`, `priya_redcross`, `team_delta`, `team_braver` / `Demo@2024!` — Demo volunteer accounts
 - 6 realistic Visakhapatnam demo incidents
-- 6 demo resource inventory entries
+- 6 demo resource inventory entries with reserved/dispatched stock and movement history
+- Linked demo volunteer assignments so volunteer availability, incidents, and analytics agree
 
-The Volunteers page displays each record's ID. Administrators and coordinators can add volunteers, deactivate or reactivate them, update availability, and assign available volunteers to incidents. Deactivation preserves the volunteer ID and assignment history, and is blocked while the volunteer has active assignments.
+The seed command can be rerun without duplicating demo records. Untouched legacy demo inventory is upgraded to the representative stock levels; inventory with recorded movements is preserved.
+
+The login dialog shows one-click demo access and credentials for each role. New users can self-register as volunteers only; elevated roles must use their seeded accounts. The Volunteers page displays each record's ID. Administrators and coordinators can add volunteers, deactivate or reactivate them, update availability, and assign available volunteers to incidents. Deactivation preserves the volunteer ID and assignment history, and is blocked while the volunteer has active assignments.
 
 ### 4. Start the server
 
@@ -150,7 +153,7 @@ See `tests/api.test.js` and `tests/triage.test.js` for all test cases.
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | POST | `/api/auth/login` | — | Login, returns JWT |
-| POST | `/api/auth/register` | — (demo mode) | Create account |
+| POST | `/api/auth/register` | — | Public signup; always creates a volunteer account |
 | GET | `/api/auth/me` | Bearer | Current user profile |
 | POST | `/api/auth/logout` | Bearer | Record logout |
 

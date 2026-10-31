@@ -14,7 +14,7 @@ const router = express.Router();
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 20,
-  message: { success: false, error: 'Too many login attempts. Please wait 15 minutes.' },
+  message: { success: false, error: 'Too many authentication attempts. Please wait 15 minutes.' },
 });
 
 // ---- Validation schemas ----
@@ -24,10 +24,9 @@ const loginSchema = Joi.object({
 });
 
 const registerSchema = Joi.object({
-  displayName: Joi.string().min(2).max(100).required(),
-  username: Joi.string().alphanum().min(3).max(50).required(),
+  displayName: Joi.string().trim().min(2).max(100).required(),
+  username: Joi.string().trim().lowercase().pattern(/^[a-z0-9_.-]+$/).min(3).max(50).required(),
   password: Joi.string().min(8).max(128).required(),
-  role: Joi.string().valid('coordinator', 'volunteer', 'analyst').default('volunteer'),
 });
 
 function signToken(userId) {
@@ -61,35 +60,31 @@ router.post('/login', authLimiter, asyncHandler(async (req, res) => {
   res.json({ success: true, token, user: user.toSafeObject() });
 }));
 
-// POST /api/auth/register (admin only in production; open in demo mode)
-router.post('/register', asyncHandler(async (req, res) => {
+// Public self-registration always creates a volunteer account.
+router.post('/register', authLimiter, asyncHandler(async (req, res) => {
   const isDemoMode = process.env.DEMO_MODE === 'true';
-
-  // In production, only admins can create users via this endpoint
-  if (!isDemoMode) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) throw createError('Admin authentication required to register users.', 401);
-  }
 
   const { error, value } = registerSchema.validate(req.body);
   if (error) throw createError(error.details[0].message, 422);
 
-  const existing = await User.findOne({ username: value.username });
+  const username = value.username.toLowerCase();
+  const existing = await User.findOne({ username });
   if (existing) throw createError('Username already taken.', 409);
 
   const user = await User.create({
     displayName: value.displayName,
-    username: value.username,
+    username,
     passwordHash: value.password, // pre-save hook will hash it
-    role: value.role,
+    role: 'volunteer',
     isDemo: isDemoMode,
+    profile: { availability: 'available' },
   });
 
   const token = signToken(user._id);
 
   await audit.record({
     actorName: 'System', action: 'user:registered', entityType: 'User',
-    entityId: user._id, entityRef: user.username,
+    entityId: user._id, entityRef: user.username, isDemo: user.isDemo,
     ipAddress: req.ip,
   });
 
@@ -114,4 +109,3 @@ router.post('/logout', authenticate, asyncHandler(async (req, res) => {
 }));
 
 module.exports = router;
-

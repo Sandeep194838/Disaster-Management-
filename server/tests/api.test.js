@@ -142,6 +142,39 @@ describe('Health check & Security', () => {
 
 // ── Test 2: Authentication ────────────────────────────────────────────────────
 describe('Authentication', () => {
+  test('Public registration cannot choose an elevated role', async () => {
+    const res = await request(app).post('/api/auth/register').send({
+      displayName: 'Privilege Attempt',
+      username: 'privilege_attempt',
+      password: 'VolunteerPass123!',
+      role: 'admin',
+    });
+
+    expect(res.status).toBe(422);
+  });
+
+  dbTest('Public registration creates and signs in a volunteer account', async () => {
+    const res = await request(app).post('/api/auth/register').send({
+      displayName: 'Self Registered Volunteer',
+      username: 'Self_Registered',
+      password: 'VolunteerPass123!',
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.user.role).toBe('volunteer');
+    expect(res.body.user.username).toBe('self_registered');
+    expect(res.body.user.profile.availability).toBe('available');
+    expect(res.body.token).toBeTruthy();
+    expect(JSON.stringify(res.body)).not.toContain('VolunteerPass123!');
+
+    const duplicateRes = await request(app).post('/api/auth/register').send({
+      displayName: 'Duplicate Volunteer',
+      username: 'self_registered',
+      password: 'VolunteerPass123!',
+    });
+    expect(duplicateRes.status).toBe(409);
+  });
+
   dbTest('Valid login returns token', async () => {
     const res = await request(app).post('/api/auth/login').send({ username: 'test_coord', password: 'Coord@Test1' });
     expect(res.status).toBe(200);
@@ -553,5 +586,39 @@ describe('Volunteer management and dispatch', () => {
       .send({ status: 'completed' });
     expect(progressRes.status).toBe(200);
     expect((await User.findById(volunteerId)).profile.availability).toBe('available');
+  });
+});
+
+describe('Demo data and analytics consistency', () => {
+  dbTest('Demo seeding is repeat-safe and summary counts seeded inventory and assignments', async () => {
+    const { seedDemoData } = require('../src/routes/demo');
+    const Assignment = require('../src/models/Assignment');
+    await Promise.all([
+      User.deleteMany({ isDemo: true }),
+      Incident.deleteMany({ isDemo: true }),
+      Resource.deleteMany({ isDemo: true }),
+      Assignment.deleteMany({ isDemo: true }),
+    ]);
+    await Resource.create({
+      name: 'Packaged Drinking Water (1L bottles)',
+      resourceType: 'Drinking Water',
+      unit: 'bottles',
+      quantityTotal: 500,
+      isDemo: true,
+    });
+
+    await seedDemoData();
+    await seedDemoData();
+
+    const res = await request(app).get('/api/analytics/summary?isDemo=true');
+    expect(res.status).toBe(200);
+    expect(res.body.data.incidents.total).toBe(6);
+    expect(res.body.data.volunteers).toEqual({ total: 4, available: 2, assigned: 2 });
+    expect(res.body.data.resources).toEqual({
+      total: 6,
+      dispatched: 227,
+      reserved: 89,
+      available: 829,
+    });
   });
 });

@@ -54,7 +54,7 @@ async function seedDemoData(seedUser) {
   const seeder = seedUser || { _id: null, displayName: 'System Seed', role: 'admin' };
 
   // Demo volunteers
-  const volunteers = await User.create([
+  const volunteerData = [
     {
       displayName: 'Kiran (AU NSS)',
       username: 'kiran_nss',
@@ -87,17 +87,60 @@ async function seedDemoData(seedUser) {
       isDemo: true,
       profile: { skills: ['Off-road Transport', 'Patient Transfer'], serviceArea: 'Pithapuram Colony, Maddilapalem', availability: 'available', teamAffiliation: 'Vizag 4x4 Club' },
     },
-  ]);
+  ];
+  const volunteers = [];
+  for (const volunteerDataItem of volunteerData) {
+    let volunteer = await User.findOne({ username: volunteerDataItem.username });
+    if (!volunteer) volunteer = await User.create(volunteerDataItem);
+    volunteers.push(volunteer);
+  }
 
   // Demo resources
-  await Resource.create([
-    { name: 'Packaged Drinking Water (1L bottles)', resourceType: 'Drinking Water', unit: 'bottles', quantityTotal: 500, quantityReserved: 0, quantityDispatched: 0, storageLocation: 'GVMC Warehouse, Jagadamba Jn', responsibleOrg: 'GVMC Relief Cell', lowStockThreshold: 50, isDemo: true },
-    { name: 'Ready-to-eat Food Packets', resourceType: 'Food Packets', unit: 'packets', quantityTotal: 300, quantityReserved: 0, quantityDispatched: 0, storageLocation: 'AU Community Center', responsibleOrg: 'Andhra University NSS', lowStockThreshold: 30, isDemo: true },
-    { name: 'First-aid Kits (standard)', resourceType: 'First-Aid Kits', unit: 'kits', quantityTotal: 80, quantityReserved: 0, quantityDispatched: 0, storageLocation: 'King George Hospital Store', responsibleOrg: 'KGH Emergency Dept', lowStockThreshold: 10, isDemo: true },
-    { name: 'Inflatable Rescue Boats', resourceType: 'Boats', unit: 'boats', quantityTotal: 5, quantityReserved: 0, quantityDispatched: 0, storageLocation: 'Port Area Depot', responsibleOrg: 'NDRF Team Vizag', lowStockThreshold: 1, isDemo: true },
-    { name: 'Woolen Blankets', resourceType: 'Blankets', unit: 'blankets', quantityTotal: 200, quantityReserved: 0, quantityDispatched: 0, storageLocation: 'RTC Complex Hall', responsibleOrg: 'District Collector Office', lowStockThreshold: 20, isDemo: true },
-    { name: 'Essential Medicines Kit', resourceType: 'Medicines', unit: 'kits', quantityTotal: 60, quantityReserved: 0, quantityDispatched: 0, storageLocation: 'PHC Akkayyapalem', responsibleOrg: 'Dept. of Health AP', lowStockThreshold: 5, isDemo: true },
-  ]);
+  const resourceData = [
+    { name: 'Packaged Drinking Water (1L bottles)', resourceType: 'Drinking Water', unit: 'bottles', quantityTotal: 500, quantityReserved: 25, quantityDispatched: 80, storageLocation: 'GVMC Warehouse, Jagadamba Jn', responsibleOrg: 'GVMC Relief Cell', lowStockThreshold: 50 },
+    { name: 'Ready-to-eat Food Packets', resourceType: 'Food Packets', unit: 'packets', quantityTotal: 300, quantityReserved: 30, quantityDispatched: 50, storageLocation: 'AU Community Center', responsibleOrg: 'Andhra University NSS', lowStockThreshold: 30 },
+    { name: 'First-aid Kits (standard)', resourceType: 'First-Aid Kits', unit: 'kits', quantityTotal: 80, quantityReserved: 8, quantityDispatched: 20, storageLocation: 'King George Hospital Store', responsibleOrg: 'KGH Emergency Dept', lowStockThreshold: 10 },
+    { name: 'Inflatable Rescue Boats', resourceType: 'Boats', unit: 'boats', quantityTotal: 5, quantityReserved: 1, quantityDispatched: 2, storageLocation: 'Port Area Depot', responsibleOrg: 'NDRF Team Vizag', lowStockThreshold: 1 },
+    { name: 'Woolen Blankets', resourceType: 'Blankets', unit: 'blankets', quantityTotal: 200, quantityReserved: 20, quantityDispatched: 60, storageLocation: 'RTC Complex Hall', responsibleOrg: 'District Collector Office', lowStockThreshold: 20 },
+    { name: 'Essential Medicines Kit', resourceType: 'Medicines', unit: 'kits', quantityTotal: 60, quantityReserved: 5, quantityDispatched: 15, storageLocation: 'PHC Akkayyapalem', responsibleOrg: 'Dept. of Health AP', lowStockThreshold: 5 },
+  ];
+  const legacyDemoTotals = {
+    'Packaged Drinking Water (1L bottles)': 500,
+    'Ready-to-eat Food Packets': 300,
+    'First-aid Kits (standard)': 80,
+    'Inflatable Rescue Boats': 5,
+    'Woolen Blankets': 200,
+  };
+  const resources = [];
+  for (const resourceDataItem of resourceData) {
+    let resource = await Resource.findOne({ name: resourceDataItem.name, isDemo: true });
+    if (!resource) {
+      resource = await Resource.create({
+        ...resourceDataItem,
+        isDemo: true,
+        movementHistory: [
+          { action: 'stock_added', quantity: resourceDataItem.quantityTotal, byUser: seeder._id, byUserName: seeder.displayName, note: 'Initial demo inventory' },
+          ...(resourceDataItem.quantityReserved ? [{ action: 'reserved', quantity: resourceDataItem.quantityReserved, byUser: seeder._id, byUserName: seeder.displayName, note: 'Seeded demo allocation' }] : []),
+          ...(resourceDataItem.quantityDispatched ? [{ action: 'dispatched', quantity: resourceDataItem.quantityDispatched, byUser: seeder._id, byUserName: seeder.displayName, note: 'Seeded demo dispatch' }] : []),
+        ],
+      });
+    } else if (
+      legacyDemoTotals[resourceDataItem.name] === resource.quantityTotal
+      && resource.quantityReserved === 0
+      && resource.quantityDispatched === 0
+      && resource.movementHistory.length === 0
+    ) {
+      Object.assign(resource, resourceDataItem, {
+        movementHistory: [
+          { action: 'stock_added', quantity: resourceDataItem.quantityTotal, byUser: seeder._id, byUserName: seeder.displayName, note: 'Initial demo inventory' },
+          ...(resourceDataItem.quantityReserved ? [{ action: 'reserved', quantity: resourceDataItem.quantityReserved, byUser: seeder._id, byUserName: seeder.displayName, note: 'Seeded demo allocation' }] : []),
+          ...(resourceDataItem.quantityDispatched ? [{ action: 'dispatched', quantity: resourceDataItem.quantityDispatched, byUser: seeder._id, byUserName: seeder.displayName, note: 'Seeded demo dispatch' }] : []),
+        ],
+      });
+      await resource.save();
+    }
+    resources.push(resource);
+  }
 
   // Demo incidents (historical timestamps for realism)
   const now = new Date();
@@ -269,10 +312,46 @@ async function seedDemoData(seedUser) {
     const d = incidentData[i];
     // Stagger creation timestamps
     const createdAt = new Date(now2 - (i + 1) * 15 * 60000);
-    const inc = new Incident({ ...d, createdAt, updatedAt: createdAt });
-    inc.statusHistory = [{ status: d.status || 'submitted', changedByName: 'System Seed', timestamp: createdAt }];
-    await inc.save();
+    let inc = await Incident.findOne({ isDemo: true, originalReport: d.originalReport });
+    if (!inc) {
+      inc = new Incident({ ...d, createdAt, updatedAt: createdAt });
+      inc.statusHistory = [{ status: d.status || 'submitted', changedByName: 'System Seed', timestamp: createdAt }];
+      await inc.save();
+    }
     incidents.push(inc);
+  }
+
+  const demoAssignments = [
+    { incidentIndex: 1, volunteerUsername: 'priya_redcross', status: 'sent' },
+    { incidentIndex: 2, volunteerUsername: 'team_delta', status: 'in_progress' },
+  ];
+  for (const item of demoAssignments) {
+    const incident = incidents[item.incidentIndex];
+    let assignment = await Assignment.findOne({
+      incident: incident._id,
+      isDemo: true,
+      status: { $in: ['pending', 'sent', 'acknowledged', 'in_progress'] },
+    });
+    if (assignment) continue;
+
+    const volunteer = volunteers.find(user => user.username === item.volunteerUsername);
+    if (!volunteer) throw new Error(`Demo volunteer ${item.volunteerUsername} is missing.`);
+    assignment = await Assignment.create({
+      incident: incident._id,
+      incidentRef: incident.ref,
+      volunteer: volunteer._id,
+      volunteerName: volunteer.displayName,
+      status: item.status,
+      coordinatorNote: 'Seeded demo assignment',
+      assignedBy: seeder._id,
+      assignedByName: seeder.displayName,
+      isDemo: true,
+      ...(item.status === 'in_progress' ? { startedAt: incident.createdAt } : {}),
+    });
+    incident.assignments.addToSet(assignment._id);
+    await incident.save();
+    volunteer.profile.availability = 'assigned';
+    await volunteer.save();
   }
 
   return { incidents, volunteers };
@@ -280,4 +359,3 @@ async function seedDemoData(seedUser) {
 
 module.exports = router;
 module.exports.seedDemoData = seedDemoData;
-

@@ -1133,7 +1133,7 @@
         </button>
       </div>
 
-      <form onsubmit="handleLoginSubmit(event)" class="space-y-4">
+      <form id="loginForm" onsubmit="handleLoginSubmit(event)" class="space-y-4">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Username</label>
           <input type="text" id="loginUsername" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 outline-none focus:border-orange-500">
@@ -1148,25 +1148,50 @@
         </button>
       </form>
 
+      <div id="loginModeActions" class="text-center text-xs text-slate-600">
+        New volunteer? <button type="button" onclick="setAuthMode('register')" class="font-bold text-orange-600 hover:text-orange-700">Create an account</button>
+      </div>
+
+      <form id="registerForm" onsubmit="handleRegisterSubmit(event)" class="hidden space-y-3">
+        <p class="text-xs text-slate-600">Create a volunteer account. Coordinator, analyst, and administrator access cannot be self-registered.</p>
+        <label class="block text-xs font-bold text-slate-700">Display name
+          <input type="text" id="registerDisplayName" required minlength="2" maxlength="100" autocomplete="name" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 outline-none focus:border-orange-500">
+        </label>
+        <label class="block text-xs font-bold text-slate-700">Username
+          <input type="text" id="registerUsername" required minlength="3" maxlength="50" pattern="[A-Za-z0-9_.\x2D]+" autocomplete="username" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 outline-none focus:border-orange-500">
+        </label>
+        <label class="block text-xs font-bold text-slate-700">Password (at least 8 characters)
+          <input type="password" id="registerPassword" required minlength="8" maxlength="128" autocomplete="new-password" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 outline-none focus:border-orange-500">
+        </label>
+        <label class="block text-xs font-bold text-slate-700">Confirm password
+          <input type="password" id="registerPasswordConfirm" required minlength="8" maxlength="128" autocomplete="new-password" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 outline-none focus:border-orange-500">
+        </label>
+        <div id="registerError" class="hidden text-xs text-red-600 font-semibold" role="alert"></div>
+        <button id="registerSubmitButton" type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm py-2.5 rounded-xl transition">Create Volunteer Account</button>
+      </form>
+      <div id="registerModeActions" class="hidden text-center text-xs text-slate-600">
+        Already registered? <button type="button" onclick="setAuthMode('login')" class="font-bold text-orange-600 hover:text-orange-700">Sign in</button>
+      </div>
+
       <!-- Quick Demo Login Presets -->
-      <div class="pt-3 border-t border-slate-100 space-y-2">
+      <div id="demoLoginPresets" class="pt-3 border-t border-slate-100 space-y-2">
         <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Demo Quick Access (One-Click):</span>
         <div class="grid grid-cols-2 gap-2">
           <button onclick="quickLogin('coordinator', 'Coord@2024!')" class="text-xs bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700 font-semibold p-2 rounded-xl border border-slate-200 transition text-left">
             <span class="block text-orange-600 font-bold">Coordinator</span>
-            <span class="text-[10px] text-slate-500">Manage dispatch & AI</span>
+            <span class="text-[10px] text-slate-500">coordinator / Coord@2024!</span>
           </button>
           <button onclick="quickLogin('admin', 'Admin@2024!')" class="text-xs bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700 font-semibold p-2 rounded-xl border border-slate-200 transition text-left">
             <span class="block text-orange-600 font-bold">Administrator</span>
-            <span class="text-[10px] text-slate-500">Full audit & system</span>
+            <span class="text-[10px] text-slate-500">admin / Admin@2024!</span>
           </button>
           <button onclick="quickLogin('kiran_nss', 'Demo@2024!')" class="text-xs bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700 font-semibold p-2 rounded-xl border border-slate-200 transition text-left">
             <span class="block text-orange-600 font-bold">Volunteer</span>
-            <span class="text-[10px] text-slate-500">Kiran (AU NSS)</span>
+            <span class="text-[10px] text-slate-500">kiran_nss / Demo@2024!</span>
           </button>
           <button onclick="quickLogin('analyst', 'Analyst@2024!')" class="text-xs bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700 font-semibold p-2 rounded-xl border border-slate-200 transition text-left">
             <span class="block text-orange-600 font-bold">Analyst</span>
-            <span class="text-[10px] text-slate-500">Read-only stats</span>
+            <span class="text-[10px] text-slate-500">analyst / Analyst@2024!</span>
           </button>
         </div>
       </div>
@@ -1355,18 +1380,19 @@
     ];
 
     const SEED_VOLUNTEERS = [
-      { _id: "vol-001", displayName: "Kiran (AU NSS Rescue)", role: "volunteer", profile: { availability: "available", serviceArea: "MVP Colony, Seethammadhara", skills: ["First Aid", "Water Rescue"], teamAffiliation: "AU NSS Cell" } },
-      { _id: "vol-002", displayName: "Priya (Red Cross Vizag)", role: "volunteer", profile: { availability: "available", serviceArea: "Dabagardens, Jagadamba", skills: ["Medical", "Elderly Care"], teamAffiliation: "Red Cross Student Cell" } },
-      { _id: "vol-003", displayName: "Team Delta (Rescue Squad)", role: "volunteer", profile: { availability: "assigned", serviceArea: "Beach Road, Port Area", skills: ["Boat Operation", "Heavy Equipment"], teamAffiliation: "Vizag Rescue Cell" } },
-      { _id: "vol-004", displayName: "Team Braver (4x4 Club)", role: "volunteer", profile: { availability: "available", serviceArea: "Madhurawada, Anandapuram", skills: ["Off-road Transport", "Patient Transfer"], teamAffiliation: "Vizag 4x4 Off-Roaders" } }
+      { _id: "vol-001", displayName: "Kiran (AU NSS Rescue)", username: "kiran_nss", role: "volunteer", profile: { availability: "available", serviceArea: "MVP Colony, Seethammadhara", skills: ["First Aid", "Water Rescue"], teamAffiliation: "AU NSS Cell" } },
+      { _id: "vol-002", displayName: "Priya (Red Cross Vizag)", username: "priya_redcross", role: "volunteer", profile: { availability: "assigned", serviceArea: "Dabagardens, Jagadamba", skills: ["Medical", "Elderly Care"], teamAffiliation: "Red Cross Student Cell" } },
+      { _id: "vol-003", displayName: "Team Delta (Rescue Squad)", username: "team_delta", role: "volunteer", profile: { availability: "assigned", serviceArea: "Beach Road, Port Area", skills: ["Boat Operation", "Heavy Equipment"], teamAffiliation: "Vizag Rescue Cell" } },
+      { _id: "vol-004", displayName: "Team Braver (4x4 Club)", username: "team_braver", role: "volunteer", profile: { availability: "available", serviceArea: "Madhurawada, Anandapuram", skills: ["Off-road Transport", "Patient Transfer"], teamAffiliation: "Vizag 4x4 Off-Roaders" } }
     ];
 
     const SEED_RESOURCES = [
-      { _id: "res-001", ref: "RES-WATER-01", name: "Packaged Drinking Water (1L Bottles)", resourceType: "Drinking Water", unit: "bottles", quantityTotal: 500, quantityReserved: 50, quantityDispatched: 100, storageLocation: "GVMC Warehouse, Jagadamba" },
-      { _id: "res-002", ref: "RES-FOOD-02", name: "Ready-to-Eat Food Packets", resourceType: "Food Packets", unit: "packets", quantityTotal: 300, quantityReserved: 40, quantityDispatched: 80, storageLocation: "AU Community Center" },
-      { _id: "res-003", ref: "RES-MED-03", name: "Standard First-Aid & Trauma Kits", resourceType: "First-Aid Kits", unit: "kits", quantityTotal: 80, quantityReserved: 10, quantityDispatched: 25, storageLocation: "KGH Emergency Store" },
+      { _id: "res-001", ref: "RES-WATER-01", name: "Packaged Drinking Water (1L Bottles)", resourceType: "Drinking Water", unit: "bottles", quantityTotal: 500, quantityReserved: 25, quantityDispatched: 80, storageLocation: "GVMC Warehouse, Jagadamba" },
+      { _id: "res-002", ref: "RES-FOOD-02", name: "Ready-to-Eat Food Packets", resourceType: "Food Packets", unit: "packets", quantityTotal: 300, quantityReserved: 30, quantityDispatched: 50, storageLocation: "AU Community Center" },
+      { _id: "res-003", ref: "RES-MED-03", name: "Standard First-Aid & Trauma Kits", resourceType: "First-Aid Kits", unit: "kits", quantityTotal: 80, quantityReserved: 8, quantityDispatched: 20, storageLocation: "KGH Emergency Store" },
       { _id: "res-004", ref: "RES-BOAT-04", name: "Inflatable Rescue Boats (4-Person)", resourceType: "Boats", unit: "boats", quantityTotal: 5, quantityReserved: 1, quantityDispatched: 2, storageLocation: "Port Area Fire Station" },
-      { _id: "res-005", ref: "RES-BLANKET-05", name: "Woolen Relief Blankets", resourceType: "Blankets", unit: "blankets", quantityTotal: 250, quantityReserved: 30, quantityDispatched: 50, storageLocation: "Collectorate Depot" }
+      { _id: "res-005", ref: "RES-BLANKET-05", name: "Woolen Relief Blankets", resourceType: "Blankets", unit: "blankets", quantityTotal: 200, quantityReserved: 20, quantityDispatched: 60, storageLocation: "Collectorate Depot" },
+      { _id: "res-006", ref: "RES-MEDICINE-06", name: "Essential Medicines Kit", resourceType: "Medicines", unit: "kits", quantityTotal: 60, quantityReserved: 5, quantityDispatched: 15, storageLocation: "PHC Akkayyapalem" }
     ];
 
     function getLocalDB() {
@@ -1376,6 +1402,7 @@
           incidents: SEED_INCIDENTS,
           volunteers: SEED_VOLUNTEERS,
           resources: SEED_RESOURCES,
+          demoDataVersion: 2,
           audit: [
             { createdAt: new Date(Date.now() - 30 * 60000).toISOString(), actorName: "System", action: "db:initialized", entityRef: "Vizag Scenario" },
             { createdAt: new Date(Date.now() - 10 * 60000).toISOString(), actorName: "Coordinator Lakshmi", action: "volunteer:assigned", entityRef: "INC-VIZAG-002" }
@@ -1384,7 +1411,39 @@
         localStorage.setItem('sahyog_db_v2', JSON.stringify(initial));
         return initial;
       }
-      return JSON.parse(db);
+      db = JSON.parse(db);
+      if (!db.demoDataVersion || db.demoDataVersion < 2) {
+        const legacyStock = {
+          'res-001': [500, 50, 100],
+          'res-002': [300, 40, 80],
+          'res-003': [80, 10, 25],
+          'res-004': [5, 1, 2],
+          'res-005': [250, 30, 50],
+        };
+        db.volunteers.forEach(volunteer => {
+          const seededVolunteer = SEED_VOLUNTEERS.find(item => item._id === volunteer._id);
+          if (seededVolunteer && !volunteer.username) volunteer.username = seededVolunteer.username;
+        });
+        const priya = db.volunteers.find(volunteer => volunteer._id === 'vol-002');
+        if (priya?.profile?.availability === 'available') priya.profile.availability = 'assigned';
+
+        SEED_RESOURCES.forEach(seededResource => {
+          const resource = db.resources.find(item => item._id === seededResource._id);
+          if (!resource) {
+            db.resources.push({ ...seededResource });
+            return;
+          }
+          const legacy = legacyStock[resource._id];
+          if (legacy && resource.quantityTotal === legacy[0] && resource.quantityReserved === legacy[1] && resource.quantityDispatched === legacy[2]) {
+            Object.assign(resource, seededResource, {
+              quantityAvailable: seededResource.quantityTotal - seededResource.quantityReserved - seededResource.quantityDispatched,
+            });
+          }
+        });
+        db.demoDataVersion = 2;
+        saveLocalDB(db);
+      }
+      return db;
     }
 
     function saveLocalDB(db) {
@@ -1556,11 +1615,37 @@
 
       // Auth login
       if (endpoint === '/auth/login') {
-        const volunteerUsernames = ['kiran_nss', 'priya_redcross', 'team_delta', 'team_braver'];
-        const role = body.username === 'admin' ? 'admin' : (body.username === 'analyst' ? 'analyst' : (volunteerUsernames.includes(body.username) ? 'volunteer' : 'coordinator'));
-        const displayName = body.username === 'kiran_nss' ? 'Kiran (AU NSS)' : (body.username.charAt(0).toUpperCase() + body.username.slice(1));
+        const username = String(body.username || '').trim().toLowerCase();
+        const volunteer = db.volunteers.find(item => item.username === username);
+        const role = username === 'admin' ? 'admin' : (username === 'analyst' ? 'analyst' : (volunteer ? 'volunteer' : 'coordinator'));
+        const displayName = volunteer?.displayName || (username.charAt(0).toUpperCase() + username.slice(1));
         const u = { displayName: displayName, role: role, username: body.username };
         return { success: true, token: 'mock-local-token', user: u };
+      }
+
+      // Local demo registration creates a volunteer profile without storing a password.
+      if (endpoint === '/auth/register' && method === 'POST') {
+        const username = String(body.username || '').trim().toLowerCase();
+        const displayName = String(body.displayName || '').trim();
+        if (displayName.length < 2 || displayName.length > 100) throw new Error('Display name must be between 2 and 100 characters.');
+        if (!/^[a-z0-9_.-]{3,50}$/.test(username)) throw new Error('Username must be 3-50 characters using letters, numbers, dots, underscores, or hyphens.');
+        if (String(body.password || '').length < 8 || String(body.password).length > 128) throw new Error('Password must be between 8 and 128 characters.');
+        if (['admin', 'analyst', 'coordinator'].includes(username) || db.volunteers.some(item => item.username === username)) {
+          throw new Error('Username already taken.');
+        }
+
+        const user = {
+          _id: `vol-${Date.now()}`,
+          displayName,
+          username,
+          role: 'volunteer',
+          isActive: true,
+          isDemo: true,
+          profile: { availability: 'available', skills: [] },
+        };
+        db.volunteers.push(user);
+        saveLocalDB(db);
+        return { success: true, token: 'mock-local-token', user };
       }
 
       // Auth logout
@@ -2035,7 +2120,22 @@
     }
 
     function openLoginModal() { document.getElementById('loginModal').classList.remove('hidden'); }
-    function closeLoginModal() { document.getElementById('loginModal').classList.add('hidden'); }
+    function closeLoginModal() {
+      document.getElementById('loginModal').classList.add('hidden');
+      setAuthMode('login');
+    }
+
+    function setAuthMode(mode) {
+      const registering = mode === 'register';
+      document.getElementById('loginForm').classList.toggle('hidden', registering);
+      document.getElementById('loginModeActions').classList.toggle('hidden', registering);
+      document.getElementById('registerForm').classList.toggle('hidden', !registering);
+      document.getElementById('registerModeActions').classList.toggle('hidden', !registering);
+      document.getElementById('demoLoginPresets').classList.toggle('hidden', registering);
+      document.getElementById('loginError').classList.add('hidden');
+      document.getElementById('registerError').classList.add('hidden');
+      document.querySelector('#loginModal h3').textContent = registering ? 'Create a Volunteer Account' : 'Sign In to SahyogAI';
+    }
 
     async function handleLoginSubmit(e) {
       e.preventDefault();
@@ -2055,6 +2155,46 @@
       } catch (err) {
         errEl.textContent = err.message;
         errEl.classList.remove('hidden');
+      }
+    }
+
+    async function handleRegisterSubmit(e) {
+      e.preventDefault();
+      const errorEl = document.getElementById('registerError');
+      const submitButton = document.getElementById('registerSubmitButton');
+      errorEl.classList.add('hidden');
+
+      const password = document.getElementById('registerPassword').value;
+      if (password !== document.getElementById('registerPasswordConfirm').value) {
+        errorEl.textContent = 'Passwords do not match.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      submitButton.disabled = true;
+      submitButton.textContent = 'Creating account...';
+      try {
+        const res = await api('/auth/register', 'POST', {
+          displayName: document.getElementById('registerDisplayName').value.trim(),
+          username: document.getElementById('registerUsername').value.trim().toLowerCase(),
+          password,
+        });
+        localStorage.setItem('sahyog_token', res.token);
+        currentUser = res.user;
+        renderAuthUI(currentUser);
+        document.getElementById('registerForm').reset();
+        closeLoginModal();
+        showToast(`Welcome to SahyogAI, ${currentUser.displayName}!`, 'success');
+        fetchIncidents();
+        if (!document.getElementById('screen-volunteers').classList.contains('hidden')) {
+          fetchVolunteers();
+        }
+      } catch (err) {
+        errorEl.textContent = err.message || 'Could not create your account.';
+        errorEl.classList.remove('hidden');
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Create Volunteer Account';
       }
     }
 
