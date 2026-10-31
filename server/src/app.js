@@ -9,6 +9,7 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 
 const connectDB = require('./utils/db');
+const { ensureDemoEnvironment } = require('./utils/demoEnvironment');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { setupSSE } = require('./utils/sse');
 
@@ -115,6 +116,7 @@ const PORT = parseInt(process.env.PORT) || 5000;
 async function start() {
   try {
     await connectDB();
+    await ensureDemoEnvironment();
     app.listen(PORT, () => {
       console.log(`\n🚀 SahyogAI API running on http://localhost:${PORT}`);
       console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
@@ -134,4 +136,3 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL && require.main === m
 }
 
 module.exports = app; // for testing and serverless deployment
-

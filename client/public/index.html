@@ -810,7 +810,7 @@
         </div>
         <div class="flex items-center gap-2 self-start sm:self-center">
           <button id="resourceCreateButton" onclick="openCreateResourceModal()" class="hidden text-xs bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-xl font-bold">
-            <i class="fa-solid fa-plus mr-1"></i> Create New Goods
+            <i class="fa-solid fa-plus mr-1"></i> Add Resource
           </button>
           <button onclick="fetchResources()" class="text-xs bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-xl font-semibold">
             <i class="fa-solid fa-rotate text-slate-500 mr-1"></i> Refresh Stock
@@ -2152,6 +2152,7 @@
         closeLoginModal();
         showToast(`Welcome back, ${currentUser.displayName}!`, 'success');
         fetchIncidents();
+        fetchResources();
       } catch (err) {
         errEl.textContent = err.message;
         errEl.classList.remove('hidden');
@@ -2209,6 +2210,7 @@
         closeLoginModal();
         showToast(`Signed in as ${currentUser.displayName} (${currentUser.role})`, 'success');
         fetchIncidents();
+        fetchResources();
       } catch (err) {
         showToast(err.message, 'error');
       }
@@ -2341,6 +2343,7 @@
       renderAuthUI(null);
       showToast('Signed out successfully.', 'info');
       fetchIncidents();
+      fetchResources();
     }
 
     // --- 8. SOS INTAKE & TRIAGE EXECUTION ---
@@ -2994,7 +2997,14 @@
         resourcesList = res.data || [];
 
         if (resourcesList.length === 0) {
-          grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400">No inventory records stored.</div>';
+          grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500">
+            <p>No inventory records stored.</p>
+            ${hasCoordinatorAccess()
+              ? '<p class="mt-2">Use Add Resource to create the first inventory item.</p>'
+              : currentUser
+                ? '<p class="mt-2">Only coordinators or administrators can add inventory resources.</p>'
+                : '<button onclick="openLoginModal()" class="mt-3 text-amber-700 hover:text-amber-800 font-semibold">Sign in as a coordinator or administrator to add resources</button>'}
+          </div>`;
           return;
         }
 

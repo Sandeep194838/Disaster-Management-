@@ -117,7 +117,7 @@ Log in with any of the seeded accounts above.
 | Setting | Description |
 |---------|-------------|
 | `GEMINI_API_KEY` | Leave blank → rule-based fallback is used. The UI always shows which engine ran. |
-| `DEMO_MODE=true` | Enables `/api/demo/reset` endpoint and demo data seeding. Set to `false` in production. |
+| `DEMO_MODE=true` | Enables demo reset and automatically seeds missing demo accounts/data on server startup or the first serverless API request. Disable for production deployments that should not expose demo credentials. |
 | `JWT_SECRET` | Must be a long random string. Generate fresh for each deployment. |
 
 ---
@@ -141,6 +141,7 @@ Test coverage includes:
 - Status transition validation
 - Unauthorized access blocked
 - Resource stock cannot go negative
+- Demo accounts are provisioned in demo mode and login usernames are case/space normalized
 - API response never exposes secrets
 
 See `tests/api.test.js` and `tests/triage.test.js` for all test cases.
@@ -224,14 +225,14 @@ PORT=5000
 3. Set environment variables in the platform dashboard
 4. Set build command: `npm install`
 5. Set start command: `npm start`
-6. Ensure MongoDB is accessible (use Atlas for managed DB)
+6. Ensure MongoDB is accessible (use Atlas for managed DB). With `DEMO_MODE=true`, startup creates missing demo role accounts and seeds the sample incidents, volunteers, and inventory. Existing accounts are preserved; known seeded role accounts are restored to their documented demo passwords if needed.
 
 ### Vercel
 1. Import the repository root as the project; `vercel.json` routes `/api/*` to the serverless Express handler.
-2. In **Project Settings → Environment Variables**, set `MONGODB_URI` to a reachable MongoDB Atlas database and `JWT_SECRET` to a fresh random secret. Add `NODE_ENV=production`; set `DEMO_MODE=true` only while preparing the demo. `GEMINI_API_KEY` is optional.
+2. In **Project Settings → Environment Variables**, set `MONGODB_URI` to a reachable MongoDB Atlas database and `JWT_SECRET` to a fresh random secret. Add `NODE_ENV=production`; set `DEMO_MODE=true` while preparing the demo. `GEMINI_API_KEY` is optional.
 3. Ensure the Atlas network access rules allow connections from the Vercel deployment. Resource stock movements use MongoDB transactions, so use a replica-set deployment such as Atlas.
-4. Seed the target database once from a trusted local machine with the same `MONGODB_URI`: run `cd server; npm install; npm run seed`. The seed script creates the demo coordinator (`coordinator / Coord@2024!`) and sample records.
-5. Redeploy after setting environment variables. Check `/api/health`, then sign in as the coordinator to create volunteers, manage inventory, and view the audit trail. Read-only volunteer, inventory, and analytics views are available without signing in; management actions require coordinator/admin credentials.
+4. On the first API request with `DEMO_MODE=true`, the service creates missing demo role accounts and seeds sample incidents, volunteers, and inventory. The same setup can be run manually with `cd server; npm install; npm run seed`. Existing accounts are preserved; known seeded role accounts are restored to their documented demo passwords if needed.
+5. Check `/api/health`, then sign in with `admin / Admin@2024!`, `coordinator / Coord@2024!`, or `analyst / Analyst@2024!`. Coordinators and administrators can add inventory resources from **Relief Inventory → Add Resource**; read-only views remain public.
 
 ### Docker (optional)
 A `Dockerfile` can be added at `server/Dockerfile`. The app listens on `PORT` env variable.

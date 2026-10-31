@@ -2,6 +2,7 @@
 
 const app = require('../server/src/app');
 const connectDB = require('../server/src/utils/db');
+const { ensureDemoEnvironment } = require('../server/src/utils/demoEnvironment');
 
 let dbConnectionPromise;
 
@@ -28,8 +29,9 @@ async function ensureDatabaseConnection() {
 module.exports = async (req, res) => {
   try {
     await ensureDatabaseConnection();
+    await ensureDemoEnvironment();
   } catch (err) {
-    console.error('[Vercel Serverless] Database unavailable:', err.message);
+    console.error('[Vercel Serverless] Database initialization failed:', err.message);
     return res.status(503).json({
       success: false,
       error: 'API configuration is incomplete or the database is unavailable. Verify JWT_SECRET, MONGODB_URI, and database access.',

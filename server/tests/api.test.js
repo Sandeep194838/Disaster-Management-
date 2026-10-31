@@ -153,6 +153,16 @@ describe('Authentication', () => {
     expect(res.status).toBe(422);
   });
 
+  test('Public registration cannot reserve demo account usernames', async () => {
+    const res = await request(app).post('/api/auth/register').send({
+      displayName: 'Fake Administrator',
+      username: ' ADMIN ',
+      password: 'VolunteerPass123!',
+    });
+
+    expect(res.status).toBe(409);
+  });
+
   dbTest('Public registration creates and signs in a volunteer account', async () => {
     const res = await request(app).post('/api/auth/register').send({
       displayName: 'Self Registered Volunteer',
@@ -176,7 +186,7 @@ describe('Authentication', () => {
   });
 
   dbTest('Valid login returns token', async () => {
-    const res = await request(app).post('/api/auth/login').send({ username: 'test_coord', password: 'Coord@Test1' });
+    const res = await request(app).post('/api/auth/login').send({ username: ' TEST_COORD ', password: 'Coord@Test1' });
     expect(res.status).toBe(200);
     expect(res.body.token).toBeDefined();
     expect(res.body.user.role).toBe('coordinator');
@@ -590,6 +600,40 @@ describe('Volunteer management and dispatch', () => {
 });
 
 describe('Demo data and analytics consistency', () => {
+  dbTest('Demo-mode startup provisions missing accounts and inventory', async () => {
+    const { ensureDemoEnvironment, provisionDemoEnvironment } = require('../src/utils/demoEnvironment');
+    await User.deleteMany({ username: { $in: ['admin', 'coordinator', 'analyst'] } });
+
+    await expect(ensureDemoEnvironment()).resolves.toBe(true);
+    const seededAdmin = await User.findOne({ username: 'admin' }).select('+passwordHash');
+    seededAdmin.passwordHash = 'IncorrectLegacyPassword!';
+    await seededAdmin.save();
+    await provisionDemoEnvironment();
+
+    const accounts = [
+      ['admin', 'Admin@2024!', 'admin'],
+      ['coordinator', 'Coord@2024!', 'coordinator'],
+      ['analyst', 'Analyst@2024!', 'analyst'],
+    ];
+    for (const [username, password, role] of accounts) {
+      const login = await request(app).post('/api/auth/login').send({ username, password });
+      expect(login.status).toBe(200);
+      expect(login.body.user.role).toBe(role);
+    }
+
+    expect(await Resource.countDocuments({
+      isDemo: true,
+      name: { $in: [
+        'Packaged Drinking Water (1L bottles)',
+        'Ready-to-eat Food Packets',
+        'First-aid Kits (standard)',
+        'Inflatable Rescue Boats',
+        'Woolen Blankets',
+        'Essential Medicines Kit',
+      ] },
+    })).toBe(6);
+  });
+
   dbTest('Demo seeding is repeat-safe and summary counts seeded inventory and assignments', async () => {
     const { seedDemoData } = require('../src/routes/demo');
     const Assignment = require('../src/models/Assignment');

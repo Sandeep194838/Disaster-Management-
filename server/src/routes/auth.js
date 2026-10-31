@@ -16,10 +16,14 @@ const authLimiter = rateLimit({
   max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 20,
   message: { success: false, error: 'Too many authentication attempts. Please wait 15 minutes.' },
 });
+const reservedUsernames = new Set([
+  'admin', 'coordinator', 'analyst',
+  'kiran_nss', 'priya_redcross', 'team_delta', 'team_braver',
+]);
 
 // ---- Validation schemas ----
 const loginSchema = Joi.object({
-  username: Joi.string().min(3).max(50).required(),
+  username: Joi.string().trim().lowercase().min(3).max(50).required(),
   password: Joi.string().min(6).max(128).required(),
 });
 
@@ -68,6 +72,9 @@ router.post('/register', authLimiter, asyncHandler(async (req, res) => {
   if (error) throw createError(error.details[0].message, 422);
 
   const username = value.username.toLowerCase();
+  if (reservedUsernames.has(username)) {
+    throw createError('That username is reserved for a demo account.', 409);
+  }
   const existing = await User.findOne({ username });
   if (existing) throw createError('Username already taken.', 409);
 
