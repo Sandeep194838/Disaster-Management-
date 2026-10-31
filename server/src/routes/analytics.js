@@ -6,7 +6,7 @@ const Assignment = require('../models/Assignment');
 const Resource = require('../models/Resource');
 const User = require('../models/User');
 const AuditEvent = require('../models/AuditEvent');
-const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 const router = express.Router();
@@ -15,8 +15,7 @@ const availableStockExpression = {
   $subtract: ['$quantityTotal', { $add: ['$quantityReserved', '$quantityDispatched'] }],
 };
 
-// Allow unauthenticated read access to analytics; audit route requires coordinator+
-router.use(optionalAuth);
+router.use(authenticate, authorize('admin', 'analyst'));
 
 // ============================================================================
 // GET /api/analytics/summary — dashboard KPIs
@@ -157,7 +156,7 @@ router.get('/resource-usage', asyncHandler(async (req, res) => {
 // ============================================================================
 // GET /api/analytics/audit — recent audit trail (admin only)
 // ============================================================================
-router.get('/audit', authenticate, authorize('admin', 'coordinator'), asyncHandler(async (req, res) => {
+router.get('/audit', authorize('admin'), asyncHandler(async (req, res) => {
   const { page = 1, limit = 50, entityType, action } = req.query;
   const filter = {};
   if (entityType) filter.entityType = entityType;

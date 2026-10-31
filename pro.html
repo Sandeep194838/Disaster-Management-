@@ -116,18 +116,21 @@
         <button onclick="navigate('action')" id="nav-action" class="nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
           <i class="fa-solid fa-triangle-exclamation mr-1.5 text-orange-600"></i><span data-i18n="nav_action">Submit SOS</span>
         </button>
-        <button onclick="navigate('result')" id="nav-result" class="nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50 relative">
+        <button onclick="navigate('result')" id="nav-result" class="hidden nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50 relative">
           <i class="fa-solid fa-list-check mr-1.5 text-blue-600"></i><span data-i18n="nav_result">Dispatch Board</span>
           <span id="activeCountBadge" class="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-red-600 text-white font-bold">0</span>
         </button>
-        <button onclick="navigate('volunteers')" id="nav-volunteers" class="nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
-          <i class="fa-solid fa-users mr-1.5 text-emerald-600"></i><span data-i18n="nav_volunteers">Volunteers</span>
+        <button onclick="navigate('volunteers')" id="nav-volunteers" class="hidden nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
+          <i class="fa-solid fa-users mr-1.5 text-emerald-600"></i><span id="navVolunteersLabel" data-i18n="nav_volunteers">Volunteers</span>
         </button>
-        <button onclick="navigate('resources')" id="nav-resources" class="nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
+        <button onclick="navigate('resources')" id="nav-resources" class="hidden nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
           <i class="fa-solid fa-boxes-stacked mr-1.5 text-amber-600"></i><span data-i18n="nav_resources">Relief Inventory</span>
         </button>
-        <button onclick="navigate('analytics')" id="nav-analytics" class="nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
+        <button onclick="navigate('analytics')" id="nav-analytics" class="hidden nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
           <i class="fa-solid fa-chart-pie mr-1.5 text-purple-600"></i><span data-i18n="nav_analytics">Analytics</span>
+        </button>
+        <button onclick="navigate('settings')" id="nav-settings" class="hidden nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
+          <i class="fa-solid fa-gear mr-1.5 text-slate-500"></i><span>System Settings</span>
         </button>
       </nav>
 
@@ -136,9 +139,9 @@
         <div id="userBadgeArea" class="hidden sm:flex items-center gap-2 text-xs">
           <!-- Populated by auth JS -->
         </div>
-        <button onclick="navigate('action')" class="bg-orange-600 hover:bg-orange-700 text-white px-3.5 py-2 rounded-lg text-sm font-bold shadow-sm shadow-orange-600/30 transition flex items-center gap-2">
+        <button onclick="navigate('action')" id="headerSosButton" class="bg-orange-600 hover:bg-orange-700 text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-black shadow-sm shadow-orange-600/30 transition flex items-center gap-2">
           <i class="fa-solid fa-paper-plane text-xs"></i>
-          <span data-i18n="btn_quick_sos">Report Emergency</span>
+          <span>EMERGENCY SOS</span>
         </button>
         <button id="mobileMenuBtn" onclick="toggleMobileNav()" class="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Toggle Navigation">
           <i class="fa-solid fa-bars text-lg"></i>
@@ -151,22 +154,25 @@
       <button onclick="navigate('home'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
         <i class="fa-solid fa-house w-6 text-orange-600"></i><span data-i18n="nav_home">Home</span>
       </button>
-      <button onclick="navigate('action'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center justify-between">
+      <button onclick="navigate('action'); closeMobileNav()" id="mobile-nav-action" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center justify-between">
         <span><i class="fa-solid fa-triangle-exclamation w-6 text-orange-600"></i><span data-i18n="nav_action">Submit SOS</span></span>
         <span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold">Fast</span>
       </button>
-      <button onclick="navigate('result'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center justify-between">
+      <button onclick="navigate('result'); closeMobileNav()" id="mobile-nav-result" class="hidden w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center justify-between">
         <span><i class="fa-solid fa-list-check w-6 text-blue-600"></i><span data-i18n="nav_result">Dispatch Board</span></span>
         <span id="mobileActiveCount" class="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full font-bold">0</span>
       </button>
-      <button onclick="navigate('volunteers'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
-        <i class="fa-solid fa-users w-6 text-emerald-600"></i><span data-i18n="nav_volunteers">Volunteers</span>
+      <button onclick="navigate('volunteers'); closeMobileNav()" id="mobile-nav-volunteers" class="hidden w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
+      <i class="fa-solid fa-users w-6 text-emerald-600"></i><span id="mobileNavVolunteersLabel" data-i18n="nav_volunteers">Volunteers</span>
       </button>
-      <button onclick="navigate('resources'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
+      <button onclick="navigate('resources'); closeMobileNav()" id="mobile-nav-resources" class="hidden w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
         <i class="fa-solid fa-boxes-stacked w-6 text-amber-600"></i><span data-i18n="nav_resources">Relief Inventory</span>
       </button>
-      <button onclick="navigate('analytics'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
+      <button onclick="navigate('analytics'); closeMobileNav()" id="mobile-nav-analytics" class="hidden w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
         <i class="fa-solid fa-chart-pie w-6 text-purple-600"></i><span data-i18n="nav_analytics">Analytics</span>
+      </button>
+      <button onclick="navigate('settings'); closeMobileNav()" id="mobile-nav-settings" class="hidden w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
+      <i class="fa-solid fa-gear w-6 text-slate-500"></i><span>System Settings</span>
       </button>
       <div id="mobileUserArea" class="pt-2 border-t border-slate-100 flex items-center justify-between">
         <!-- Filled by auth JS -->
@@ -180,9 +186,66 @@
     <!-- ============================================== -->
     <!-- SCREEN 1: HOME SCREEN                          -->
     <!-- ============================================== -->
-    <section id="screen-home" class="space-y-12">
+    <section id="screen-home" class="space-y-6">
+      <div class="rounded-3xl bg-white border border-slate-200 shadow-sm p-5 sm:p-8">
+        <div class="grid lg:grid-cols-[1.05fr_.95fr] gap-6 lg:gap-10 items-center">
+          <div id="homeEmergencyPathway" class="space-y-4">
+            <p class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-700 bg-orange-50 border border-orange-200 rounded-full px-3 py-1.5">
+              <span class="w-2 h-2 rounded-full bg-orange-600 urgent-pulse"></span> Visakhapatnam Emergency Support
+            </p>
+            <h1 id="homeEmergencyTitle" class="text-3xl sm:text-5xl font-black tracking-tight leading-tight text-slate-950">Need help now?</h1>
+            <p id="homeEmergencyDescription" class="text-slate-600 text-sm sm:text-base max-w-xl">Tell responders what is happening and where you are. You can report in English, తెలుగు, or Tanglish. No account is needed.</p>
+            <button onclick="navigate('action')" id="homeEmergencyButton" class="w-full sm:w-auto min-h-16 rounded-2xl bg-orange-600 hover:bg-orange-700 text-white text-lg sm:text-xl font-black px-7 py-4 shadow-lg shadow-orange-600/25 flex items-center justify-center gap-3">
+              <i class="fa-solid fa-triangle-exclamation"></i> EMERGENCY SOS
+            </button>
+            <p id="homeEmergencyDisclaimer" class="text-xs font-semibold text-slate-600">Life-threatening emergency? Call <a href="tel:112" class="text-orange-700 underline underline-offset-2">112</a>. SOS reporting does not replace emergency services.</p>
+          </div>
+          <div id="homeEmergencyCategories" class="space-y-3">
+            <h2 class="text-sm font-extrabold uppercase tracking-wide text-slate-700">Choose what you need</h2>
+            <div class="grid grid-cols-2 gap-3">
+              <button onclick="startEmergency('Medical Emergency')" data-emergency-pathway class="min-h-24 rounded-2xl border-2 border-red-100 bg-red-50 hover:border-red-300 p-4 text-left text-slate-900">
+                <i class="fa-solid fa-kit-medical text-xl text-red-600"></i><span class="block mt-2 text-sm sm:text-base font-extrabold">Medical & Rescue</span>
+              </button>
+              <button onclick="startEmergency('Food & Drinking Water')" data-emergency-pathway class="min-h-24 rounded-2xl border-2 border-emerald-100 bg-emerald-50 hover:border-emerald-300 p-4 text-left text-slate-900">
+                <i class="fa-solid fa-bottle-water text-xl text-emerald-700"></i><span class="block mt-2 text-sm sm:text-base font-extrabold">Food & Water</span>
+              </button>
+              <button onclick="startEmergency('Trapped / Missing People')" data-emergency-pathway class="min-h-24 rounded-2xl border-2 border-amber-100 bg-amber-50 hover:border-amber-300 p-4 text-left text-slate-900">
+                <i class="fa-solid fa-person-circle-exclamation text-xl text-amber-700"></i><span class="block mt-2 text-sm sm:text-base font-extrabold">Trapped</span>
+              </button>
+              <button onclick="startEmergency('Power Outage')" data-emergency-pathway class="min-h-24 rounded-2xl border-2 border-slate-200 bg-slate-100 hover:border-slate-400 p-4 text-left text-slate-900">
+                <i class="fa-solid fa-road-barrier text-xl text-slate-700"></i><span class="block mt-2 text-sm sm:text-base font-extrabold">Power / Roadblock</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-3xl bg-slate-900 text-white p-5 sm:p-7">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
+          <div>
+            <p class="text-xs uppercase tracking-wider font-bold text-orange-300">Registered Personnel</p>
+            <h2 class="text-xl sm:text-2xl font-black mt-1">Demo Quick Access <span class="text-orange-300">(One-Click)</span></h2>
+          </div>
+          <p class="text-xs text-slate-300">Choose a role to preview its live workspace.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <button onclick="quickLogin('coordinator','Coord@2024!')" class="rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 p-3 text-left">
+            <span class="block font-bold text-orange-200">Coordinator</span><span class="block text-xs text-slate-300 mt-1">coordinator / Coord@2024!</span>
+          </button>
+          <button onclick="quickLogin('admin','Admin@2024!')" class="rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 p-3 text-left">
+            <span class="block font-bold text-red-200">Administrator</span><span class="block text-xs text-slate-300 mt-1">admin / Admin@2024!</span>
+          </button>
+          <button onclick="quickLogin('kiran_nss','Demo@2024!')" class="rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 p-3 text-left">
+            <span class="block font-bold text-emerald-200">Volunteer</span><span class="block text-xs text-slate-300 mt-1">kiran_nss / Demo@2024!</span>
+          </button>
+          <button onclick="quickLogin('analyst','Analyst@2024!')" class="rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 p-3 text-left">
+            <span class="block font-bold text-purple-200">Analyst</span><span class="block text-xs text-slate-300 mt-1">analyst / Analyst@2024!</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Hero -->
-      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white p-6 sm:p-12 lg:p-16 shadow-2xl border border-slate-700">
+      <div class="hidden relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white p-6 sm:p-12 lg:p-16 shadow-2xl border border-slate-700">
         <div class="absolute -right-20 -top-20 w-96 h-96 bg-orange-600/20 rounded-full blur-3xl pointer-events-none"></div>
         <div class="absolute -left-20 -bottom-20 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -231,7 +294,7 @@
       </div>
 
       <!-- Before and After Comparison -->
-      <div class="space-y-6">
+      <div class="hidden space-y-6">
         <div class="text-center max-w-2xl mx-auto">
           <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900" data-i18n="chaos_vs_order_title">The Cyclone Rescue Bottleneck</h2>
           <p class="text-slate-600 text-sm sm:text-base mt-2" data-i18n="chaos_vs_order_subtitle">Why traditional uncoordinated messaging fails ground rescue workers.</p>
@@ -293,7 +356,7 @@
       </div>
 
       <!-- 3-Step Pipeline -->
-      <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <div class="hidden bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
         <h3 class="font-bold text-lg text-slate-900 mb-6 flex items-center gap-2">
           <i class="fa-solid fa-route text-orange-600"></i>
           <span data-i18n="workflow_title">Integrated Disaster Response Workflow</span>
@@ -369,19 +432,19 @@
                 <span class="text-red-500">*</span>
               </label>
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="categoryPillGroup">
-                <button type="button" onclick="selectCategory('Medical Emergency')" class="category-pill py-2 px-2.5 rounded-xl border border-orange-500 bg-orange-50 text-orange-700 ring-2 ring-orange-200 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Medical Emergency">
+                <button type="button" onclick="selectCategory('Medical Emergency')" class="category-pill min-h-14 py-3 px-2.5 rounded-xl border border-orange-500 bg-orange-50 text-orange-700 ring-2 ring-orange-200 text-sm font-semibold flex items-center justify-center gap-1.5" data-category="Medical Emergency">
                   <i class="fa-solid fa-heart-pulse text-red-600"></i><span>Medical</span>
                 </button>
-                <button type="button" onclick="selectCategory('Flooding')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Flooding">
+                <button type="button" onclick="selectCategory('Flooding')" class="category-pill min-h-14 py-3 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold flex items-center justify-center gap-1.5" data-category="Flooding">
                   <i class="fa-solid fa-water text-blue-600"></i><span>Flooding</span>
                 </button>
-                <button type="button" onclick="selectCategory('Food & Drinking Water')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Food & Drinking Water">
+                <button type="button" onclick="selectCategory('Food & Drinking Water')" class="category-pill min-h-14 py-3 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold flex items-center justify-center gap-1.5" data-category="Food & Drinking Water">
                   <i class="fa-solid fa-bottle-water text-emerald-600"></i><span>Food/Water</span>
                 </button>
-                <button type="button" onclick="selectCategory('Roadblock & Fallen Trees')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Roadblock & Fallen Trees">
+                <button type="button" onclick="selectCategory('Roadblock & Fallen Trees')" class="category-pill min-h-14 py-3 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold flex items-center justify-center gap-1.5" data-category="Roadblock & Fallen Trees">
                   <i class="fa-solid fa-road-barrier text-amber-600"></i><span>Roadblock</span>
                 </button>
-                <button type="button" onclick="selectCategory('Trapped / Missing People')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Trapped / Missing People">
+                <button type="button" onclick="selectCategory('Trapped / Missing People')" class="category-pill min-h-14 py-3 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold flex items-center justify-center gap-1.5" data-category="Trapped / Missing People">
                   <i class="fa-solid fa-person-circle-exclamation text-red-700"></i><span>Trapped</span>
                 </button>
                 <button type="button" onclick="selectCategory('Shelter')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Shelter">
@@ -435,7 +498,7 @@
                   <span data-i18n="form_message_label">Emergency Details</span>
                   <span class="text-red-500">*</span>
                 </label>
-                <span class="text-xs text-orange-600 font-medium">English, Telugu, or Tanglish</span>
+                <span class="text-xs text-orange-600 font-medium">English, Telugu, or Tanglish (e.g. “neellu ledu”, “current poda”)</span>
               </div>
               <textarea 
                 id="rawMessageInput" 
@@ -553,6 +616,10 @@
 
             <!-- Success Outcome Card -->
             <div id="aiResultState" class="hidden space-y-4 pt-2">
+              <div class="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-950">
+                <p class="font-extrabold"><i class="fa-solid fa-circle-check mr-1"></i> SOS Logged. Priority Assigned. Local Volunteers Alerted.</p>
+                <p class="mt-1 text-xs">Keep your ticket reference. If you are in immediate danger, call 112.</p>
+              </div>
               <!-- Engine source indicator banner -->
               <div id="sourceBanner" class="p-2.5 rounded-xl text-xs flex items-center justify-between border"></div>
 
@@ -735,7 +802,7 @@
         <div>
           <div class="flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Volunteer Response Cells</h1>
+            <h1 id="volunteersPageTitle" class="text-2xl sm:text-3xl font-extrabold text-slate-900">Volunteer Response Cells</h1>
           </div>
           <p class="text-sm text-slate-600 mt-1">
             Registered ground response teams, NSS cells, and specialized rescue units for Visakhapatnam.
@@ -960,6 +1027,12 @@
         </div>
       </div>
 
+      <div class="rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:p-5">
+        <p class="text-xs font-bold uppercase tracking-wider text-blue-800">Disaster Demand Forecasting</p>
+        <p id="analyticsForecast" class="mt-1 text-lg font-black text-slate-900">Calculating from recent reports…</p>
+        <p class="mt-1 text-xs text-slate-600">Seven-day daily average baseline, not an official prediction or response guarantee.</p>
+      </div>
+
       <!-- Charts Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
@@ -1013,6 +1086,27 @@
             </tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <section id="screen-settings" class="hidden space-y-6">
+      <div class="border-b border-slate-200 pb-4">
+        <p class="text-xs font-bold uppercase tracking-wider text-orange-700">Administrator</p>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">System Settings</h1>
+        <p class="text-sm text-slate-600 mt-1">Platform health and current deployment configuration.</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-7 space-y-4">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="font-extrabold text-slate-900">Service status</h2>
+          <button onclick="loadSystemSettings()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg font-bold">Refresh</button>
+        </div>
+        <dl class="grid sm:grid-cols-2 gap-3 text-sm">
+          <div class="rounded-xl bg-slate-50 p-3"><dt class="text-xs text-slate-500">API</dt><dd id="settingsApiStatus" class="font-bold mt-1">Checking…</dd></div>
+          <div class="rounded-xl bg-slate-50 p-3"><dt class="text-xs text-slate-500">AI triage</dt><dd id="settingsAiStatus" class="font-bold mt-1">—</dd></div>
+          <div class="rounded-xl bg-slate-50 p-3"><dt class="text-xs text-slate-500">Demo mode</dt><dd id="settingsDemoStatus" class="font-bold mt-1">—</dd></div>
+          <div class="rounded-xl bg-slate-50 p-3"><dt class="text-xs text-slate-500">Deployment</dt><dd id="settingsDeployment" class="font-bold mt-1">—</dd></div>
+        </dl>
+        <p class="text-xs text-slate-500">Secrets and database credentials are never displayed here. Manage them in your hosting provider’s environment settings.</p>
       </div>
     </section>
 
@@ -1104,14 +1198,20 @@
 
         <!-- Assign Volunteer Form -->
         <div class="pt-2 border-t border-slate-100 space-y-2" id="modalVolunteerSection">
-          <label class="block font-bold text-slate-700">Assign Available Volunteer / Team:</label>
-          <div class="flex gap-2">
-            <select id="modalVolunteerSelect" class="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
-              <option value="">Select Volunteer...</option>
-            </select>
-            <button onclick="assignVolunteerToCurrentIncident()" class="bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition">
-              Assign
-            </button>
+          <div id="coordinatorAssignControls">
+            <label class="block font-bold text-slate-700">Assign Available Volunteer / Team:</label>
+            <div class="flex gap-2">
+              <select id="modalVolunteerSelect" class="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+                <option value="">Select Volunteer...</option>
+              </select>
+              <button onclick="assignVolunteerToCurrentIncident()" class="bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition">
+                Assign
+              </button>
+            </div>
+          </div>
+          <div id="volunteerTaskActions" class="hidden space-y-2">
+            <p id="volunteerTaskStatus" class="text-xs text-slate-600"></p>
+            <button id="volunteerTaskButton" onclick="handleVolunteerTaskAction()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm px-4 py-3 rounded-xl"></button>
           </div>
         </div>
       </div>
@@ -2045,8 +2145,49 @@
     }
 
     // --- 6. NAVIGATION CONTROLLER ---
+    function allowedScreensForUser(user = currentUser) {
+      if (user?.role === 'admin') return ['home', 'action', 'result', 'volunteers', 'resources', 'analytics', 'settings'];
+      if (user?.role === 'coordinator') return ['home', 'action', 'result', 'resources'];
+      if (user?.role === 'volunteer') return ['home', 'action', 'result'];
+      if (user?.role === 'analyst') return ['home', 'analytics'];
+      return ['home', 'action'];
+    }
+
+    function updateRoleNavigation(user = currentUser) {
+      const allowed = new Set(allowedScreensForUser(user));
+      const roleNav = {
+        action: ['nav-action', 'mobile-nav-action'],
+        result: ['nav-result', 'mobile-nav-result'],
+        volunteers: ['nav-volunteers', 'mobile-nav-volunteers'],
+        resources: ['nav-resources', 'mobile-nav-resources'],
+        analytics: ['nav-analytics', 'mobile-nav-analytics'],
+        settings: ['nav-settings', 'mobile-nav-settings'],
+      };
+      Object.entries(roleNav).forEach(([screen, ids]) => {
+        ids.forEach(id => document.getElementById(id)?.classList.toggle('hidden', !allowed.has(screen)));
+      });
+
+      const isAdmin = user?.role === 'admin';
+      const showEmergencyIntake = allowed.has('action');
+      document.getElementById('headerSosButton').classList.toggle('hidden', !showEmergencyIntake);
+      document.getElementById('homeEmergencyPathway').classList.toggle('hidden', !showEmergencyIntake);
+      document.getElementById('homeEmergencyCategories').classList.toggle('hidden', !showEmergencyIntake);
+      document.getElementById('navVolunteersLabel').textContent = isAdmin ? 'User Management' : 'Volunteers';
+      document.getElementById('mobileNavVolunteersLabel').textContent = isAdmin ? 'User Management' : 'Volunteers';
+      document.getElementById('volunteersPageTitle').textContent = isAdmin ? 'User Management' : 'Volunteer Response Cells';
+
+      const currentScreen = ['home', 'action', 'result', 'volunteers', 'resources', 'analytics', 'settings']
+        .find(screen => !document.getElementById(`screen-${screen}`)?.classList.contains('hidden'));
+      if (currentScreen && !allowed.has(currentScreen)) navigate('home');
+    }
+
     function navigate(screenName) {
-      ['home', 'action', 'result', 'volunteers', 'resources', 'analytics'].forEach(s => {
+      if (!allowedScreensForUser().includes(screenName)) {
+        showToast('This page is not available for your role.', 'error');
+        screenName = 'home';
+      }
+
+      ['home', 'action', 'result', 'volunteers', 'resources', 'analytics', 'settings'].forEach(s => {
         const el = document.getElementById(`screen-${s}`);
         const navEl = document.getElementById(`nav-${s}`);
         if (el) el.classList.add('hidden');
@@ -2065,6 +2206,13 @@
       if (screenName === 'volunteers') fetchVolunteers();
       if (screenName === 'resources') fetchResources();
       if (screenName === 'analytics') loadAnalytics();
+      if (screenName === 'settings') loadSystemSettings();
+    }
+
+    function startEmergency(category) {
+      navigate('action');
+      selectCategory(category);
+      setTimeout(() => document.getElementById('locationInput')?.focus(), 150);
     }
 
     function toggleMobileNav() {
@@ -2100,6 +2248,7 @@
     function renderAuthUI(user) {
       const area = document.getElementById('userBadgeArea');
       const mobileArea = document.getElementById('mobileUserArea');
+      updateRoleNavigation(user);
       if (!user) {
         const btnHtml = `<button onclick="openLoginModal()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg transition font-semibold"><i class="fa-solid fa-right-to-bracket mr-1"></i>Sign In</button>`;
         area.innerHTML = btnHtml;
@@ -2151,8 +2300,7 @@
         renderAuthUI(currentUser);
         closeLoginModal();
         showToast(`Welcome back, ${currentUser.displayName}!`, 'success');
-        fetchIncidents();
-        fetchResources();
+        refreshRoleData();
       } catch (err) {
         errEl.textContent = err.message;
         errEl.classList.remove('hidden');
@@ -2186,7 +2334,7 @@
         document.getElementById('registerForm').reset();
         closeLoginModal();
         showToast(`Welcome to SahyogAI, ${currentUser.displayName}!`, 'success');
-        fetchIncidents();
+        refreshRoleData();
         if (!document.getElementById('screen-volunteers').classList.contains('hidden')) {
           fetchVolunteers();
         }
@@ -2209,8 +2357,7 @@
         renderAuthUI(currentUser);
         closeLoginModal();
         showToast(`Signed in as ${currentUser.displayName} (${currentUser.role})`, 'success');
-        fetchIncidents();
-        fetchResources();
+        refreshRoleData();
       } catch (err) {
         showToast(err.message, 'error');
       }
@@ -2218,6 +2365,15 @@
 
     function hasCoordinatorAccess() {
       return ['admin', 'coordinator'].includes(currentUser?.role);
+    }
+
+    function canAccessDispatch() {
+      return window.location.protocol === 'file:' || ['admin', 'coordinator', 'volunteer'].includes(currentUser?.role);
+    }
+
+    function refreshRoleData() {
+      if (canAccessDispatch()) fetchIncidents();
+      if (hasCoordinatorAccess()) fetchResources();
     }
 
     function toggleVoiceInput() {
@@ -2342,8 +2498,6 @@
       currentUser = null;
       renderAuthUI(null);
       showToast('Signed out successfully.', 'info');
-      fetchIncidents();
-      fetchResources();
     }
 
     // --- 8. SOS INTAKE & TRIAGE EXECUTION ---
@@ -2563,7 +2717,7 @@
 
         resetSOSForm();
         showToast(`SOS Dispatched! Ref ID: ${updatedIncident.ref}`, 'success');
-        fetchIncidents();
+        refreshRoleData();
 
       } catch (err) {
         document.getElementById('aiLoadingState').classList.add('hidden');
@@ -2585,6 +2739,7 @@
 
     // --- 9. DISPATCH BOARD RENDERING ---
     async function fetchIncidents() {
+      if (!canAccessDispatch()) return;
       try {
         const urgency = document.getElementById('urgencyFilter')?.value || 'ALL';
         const status = document.getElementById('statusFilter')?.value || 'ALL';
@@ -2634,6 +2789,9 @@
         }
 
         const demoTag = t.isDemo ? `<span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">DEMO</span>` : `<span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">LIVE</span>`;
+        const activeAssignment = (t.assignments || []).find(item => String(item.volunteer?._id || item.volunteer) === String(currentUser?.id || currentUser?._id));
+        const canClaim = currentUser?.role === 'volunteer' && !activeAssignment && ['verified', 'awaiting_assignment'].includes(t.status) && !(t.assignments || []).length;
+        const taskButtonText = canClaim ? 'View & Claim' : activeAssignment ? 'Continue Task' : 'View & Dispatch';
         const aiSourceLabel = t.aiTriage?.source === 'gemini' ? `<span class="text-[10px] text-emerald-700 font-mono"><i class="fa-solid fa-microchip"></i> AI</span>` : `<span class="text-[10px] text-slate-400 font-mono">Fallback</span>`;
 
         card.innerHTML = `
@@ -2674,7 +2832,7 @@
           <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
             <div>${statusBadge}</div>
             <button onclick="openTaskModal('${t._id}')" class="bg-slate-900 hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm">
-              <span>View & Dispatch</span>
+              <span>${taskButtonText}</span>
               <i class="fa-solid fa-chevron-right text-[10px]"></i>
             </button>
           </div>
@@ -2714,7 +2872,10 @@
         const inc = res.data;
         currentModalIncident = inc;
         const canManage = hasCoordinatorAccess();
-        document.getElementById('modalVolunteerSection').classList.toggle('hidden', !canManage);
+        const isVolunteer = currentUser?.role === 'volunteer';
+        document.getElementById('modalVolunteerSection').classList.toggle('hidden', !canManage && !isVolunteer);
+        document.getElementById('coordinatorAssignControls').classList.toggle('hidden', !canManage);
+        document.getElementById('volunteerTaskActions').classList.toggle('hidden', !isVolunteer);
 
         document.getElementById('modalId').textContent = inc.ref;
         document.getElementById('modalTitle').textContent = inc.aiTriage?.incidentTitle || inc.category || 'Emergency Incident';
@@ -2731,6 +2892,36 @@
 
         const assignedVol = inc.assignments?.[0]?.volunteerName || "Unassigned (Available)";
         document.getElementById('modalAssignee').textContent = assignedVol;
+
+        if (isVolunteer) {
+          const ownAssignment = (inc.assignments || []).find(item =>
+            String(item.volunteer?._id || item.volunteer) === String(currentUser.id || currentUser._id)
+          );
+          const actionButton = document.getElementById('volunteerTaskButton');
+          const statusText = document.getElementById('volunteerTaskStatus');
+          if (ownAssignment) {
+            const nextStatus = { sent: 'acknowledged', acknowledged: 'in_progress', in_progress: 'completed' }[ownAssignment.status];
+            statusText.textContent = `Your assignment is ${formatStatus(ownAssignment.status)}.`;
+            actionButton.textContent = nextStatus
+              ? ({ acknowledged: 'Acknowledge task', in_progress: 'Start response', completed: 'Mark task resolved' }[nextStatus])
+              : 'Task complete';
+            actionButton.disabled = !nextStatus;
+            actionButton.dataset.assignmentId = ownAssignment._id;
+            actionButton.dataset.nextStatus = nextStatus || '';
+          } else if (['verified', 'awaiting_assignment'].includes(inc.status) && !(inc.assignments || []).length) {
+            statusText.textContent = 'This task is available for a volunteer to claim.';
+            actionButton.textContent = 'Claim this task';
+            actionButton.disabled = false;
+            actionButton.dataset.assignmentId = '';
+            actionButton.dataset.nextStatus = 'claim';
+          } else {
+            statusText.textContent = 'This task is already assigned or is not ready to claim.';
+            actionButton.textContent = 'No volunteer action available';
+            actionButton.disabled = true;
+            actionButton.dataset.assignmentId = '';
+            actionButton.dataset.nextStatus = '';
+          }
+        }
 
         const aiSource = inc.aiTriage?.source === 'gemini' ? 'Gemini 1.5 Flash' : 'Rule Fallback';
         document.getElementById('modalAiSource').textContent = aiSource;
@@ -2810,6 +3001,27 @@
       if (allowed.length === 0) {
         container.innerHTML = `<span class="text-xs text-slate-400 italic">No further status transitions permitted.</span>`;
         return;
+      }
+
+      async function handleVolunteerTaskAction() {
+        if (!currentModalIncident || currentUser?.role !== 'volunteer') return;
+        const button = document.getElementById('volunteerTaskButton');
+        const nextStatus = button.dataset.nextStatus;
+        try {
+          if (nextStatus === 'claim') {
+            await api(`/volunteers/claim/${currentModalIncident._id}`, 'POST', {});
+            showToast('Task claimed. Acknowledge it when you are ready to respond.', 'success');
+          } else if (button.dataset.assignmentId && nextStatus) {
+            await api(`/volunteers/assignments/${button.dataset.assignmentId}`, 'PATCH', { status: nextStatus });
+            showToast(nextStatus === 'completed' ? 'Task marked resolved.' : 'Task progress updated.', 'success');
+          } else {
+            return;
+          }
+          await fetchIncidents();
+          await openTaskModal(currentModalIncident._id);
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
       }
 
       allowed.forEach(nxt => {
@@ -2988,6 +3200,7 @@
 
     // --- 12. RELIEF INVENTORY MODULE ---
     async function fetchResources() {
+      if (!hasCoordinatorAccess()) return;
       const grid = document.getElementById('resourcesGrid');
       document.getElementById('resourceCreateButton').classList.toggle('hidden', !hasCoordinatorAccess());
       grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>Loading inventory...</div>';
@@ -3192,8 +3405,9 @@
 
     // --- 13. ANALYTICS & CHARTS MODULE ---
     async function loadAnalytics() {
+      if (!['admin', 'analyst'].includes(currentUser?.role)) return;
       try {
-        const canViewAudit = ['admin', 'coordinator'].includes(currentUser?.role);
+        const canViewAudit = currentUser?.role === 'admin';
         const [sumRes, catRes, urgRes, trendRes, auditRes] = await Promise.all([
           api('/analytics/summary'),
           api('/analytics/incidents-by-category'),
@@ -3215,6 +3429,8 @@
         document.getElementById('overviewDuplicateCount').textContent = s.incidents?.confirmedDuplicates || 0;
         document.getElementById('overviewDuplicateRate').textContent = `${(s.incidents?.duplicateRate || 0).toFixed(1)}%`;
         document.getElementById('analyticsUpdated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+        const averageDailyReports = (trendRes.data || []).reduce((sum, day) => sum + (Number(day.count) || 0), 0) / Math.max(1, (trendRes.data || []).length);
+        document.getElementById('analyticsForecast').textContent = `Baseline demand: about ${averageDailyReports.toFixed(1)} reports per day`;
 
         renderUrgencyChart(urgRes.data || []);
         renderCategoryChart(catRes.data || []);
@@ -3239,6 +3455,23 @@
 
       } catch (err) {
         showToast(err.message, 'error');
+      }
+    }
+
+    async function loadSystemSettings() {
+      const status = document.getElementById('settingsApiStatus');
+      status.textContent = 'Checking…';
+      try {
+        const health = await api('/health');
+        status.textContent = health.status === 'ok' ? 'Operational' : 'Unavailable';
+        document.getElementById('settingsAiStatus').textContent = health.ai || 'Unknown';
+        document.getElementById('settingsDemoStatus').textContent = health.demo ? 'Enabled' : 'Disabled';
+        document.getElementById('settingsDeployment').textContent = health.env || window.location.host;
+      } catch (error) {
+        status.textContent = `Unavailable: ${error.message}`;
+        document.getElementById('settingsAiStatus').textContent = '—';
+        document.getElementById('settingsDemoStatus').textContent = '—';
+        document.getElementById('settingsDeployment').textContent = window.location.host;
       }
     }
 
@@ -3477,7 +3710,7 @@
       await initAuth();
       loadDraft();
       initSSE();
-      await fetchIncidents();
+      if (canAccessDispatch()) await fetchIncidents();
     });
   </script>
 </body>

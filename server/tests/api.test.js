@@ -29,6 +29,7 @@ const Resource = require('../src/models/Resource');
 let coordinatorToken;
 let volunteerToken;
 let adminToken;
+let analystToken;
 let coordinatorId;
 let volunteerId;
 let hasDB = false;
@@ -67,6 +68,11 @@ beforeAll(async () => {
     });
     coordinatorId = coordinator._id;
 
+    await User.create({
+      displayName: 'Test Analyst', username: 'test_analyst',
+      passwordHash: 'Analyst@Test1', role: 'analyst',
+    });
+
     const volunteer = await User.create({
       displayName: 'Test Volunteer', username: 'test_vol',
       passwordHash: 'Vol@Test1234', role: 'volunteer',
@@ -77,6 +83,9 @@ beforeAll(async () => {
     // Get tokens
     const adminRes = await request(app).post('/api/auth/login').send({ username: 'test_admin', password: 'Admin@Test1' });
     adminToken = adminRes.body.token;
+
+    const analystRes = await request(app).post('/api/auth/login').send({ username: 'test_analyst', password: 'Analyst@Test1' });
+    analystToken = analystRes.body.token;
 
     const coordRes = await request(app).post('/api/auth/login').send({ username: 'test_coord', password: 'Coord@Test1' });
     coordinatorToken = coordRes.body.token;
@@ -381,12 +390,12 @@ describe('Authorization', () => {
     expect(assignRes.status).toBe(401);
   });
 
-  dbTest('TEST 15: Analytics summary is accessible (optionalAuth); audit requires coordinator+', async () => {
+  dbTest('Coordinator cannot access analyst metrics or admin audit data', async () => {
     // Summary is now open to all (optionalAuth)
     const summaryRes = await request(app)
       .get('/api/analytics/summary')
       .set('Authorization', `Bearer ${volunteerToken}`);
-    expect(summaryRes.status).toBe(200);
+    expect(summaryRes.status).toBe(403);
 
     // Audit still requires coordinator+
     const auditRes = await request(app)
@@ -394,19 +403,50 @@ describe('Authorization', () => {
       .set('Authorization', `Bearer ${volunteerToken}`);
     expect(auditRes.status).toBe(403);
   });
+
+  test('Guests cannot read dispatch, inventory, or analytics data', async () => {
+    const responses = await Promise.all([
+      request(app).get('/api/incidents'),
+      request(app).get('/api/incidents/000000000000000000000000'),
+      request(app).get('/api/volunteers'),
+      request(app).get('/api/resources'),
+      request(app).get('/api/analytics/summary'),
+    ]);
+
+    responses.forEach(response => expect(response.status).toBe(401));
+  });
+
+  dbTest('Admin and analyst can read metrics; other roles are denied', async () => {
+    const adminMetrics = await request(app).get('/api/analytics/summary')
+      .set('Authorization', `Bearer ${adminToken}`);
+    const analystMetrics = await request(app).get('/api/analytics/summary')
+      .set('Authorization', `Bearer ${analystToken}`);
+    const volunteerMetrics = await request(app).get('/api/analytics/summary')
+      .set('Authorization', `Bearer ${volunteerToken}`);
+    const analystDispatch = await request(app).get('/api/incidents')
+      .set('Authorization', `Bearer ${analystToken}`);
+    const coordinatorInventory = await request(app).get('/api/resources')
+      .set('Authorization', `Bearer ${coordinatorToken}`);
+
+    expect(adminMetrics.status).toBe(200);
+    expect(analystMetrics.status).toBe(200);
+    expect(volunteerMetrics.status).toBe(403);
+    expect(analystDispatch.status).toBe(403);
+    expect(coordinatorInventory.status).toBe(200);
+  });
 });
 
 describe('Public read endpoints', () => {
-  dbTest('Anonymous users can read public volunteer, inventory, and analytics views', async () => {
+  test('Anonymous users cannot read volunteer, inventory, or analytics views', async () => {
     const [volunteersRes, resourcesRes, analyticsRes] = await Promise.all([
       request(app).get('/api/volunteers'),
       request(app).get('/api/resources'),
       request(app).get('/api/analytics/summary'),
     ]);
 
-    expect(volunteersRes.status).toBe(200);
-    expect(resourcesRes.status).toBe(200);
-    expect(analyticsRes.status).toBe(200);
+    expect(volunteersRes.status).toBe(401);
+    expect(resourcesRes.status).toBe(401);
+    expect(analyticsRes.status).toBe(401);
   });
 });
 
@@ -498,6 +538,51 @@ describe('Resource inventory', () => {
   });
 });
 
+describe('Volunteer task claiming', () => {
+  dbTest('Volunteer can claim an open incident and update it through resolution', async () => {
+    const claimant = await User.create({
+      displayName: 'Claim Test Volunteer',
+      username: 'claim_test_volunteer',
+      passwordHash: 'ClaimPass123!',
+      role: 'volunteer',
+      profile: { availability: 'available' },
+    });
+    const login = await request(app).post('/api/auth/login').send({
+      username: claimant.username,
+      password: 'ClaimPass123!',
+    });
+    expect(login.status).toBe(200);
+    const authorization = `Bearer ${login.body.token}`;
+
+    const incident = await Incident.create({
+      originalReport: 'Family needs help and safe evacuation from rising flood water.',
+      locationDescription: 'Test rescue lane, MVP Colony',
+      reportedCategory: 'Flooding',
+      category: 'Flooding',
+      status: 'awaiting_assignment',
+      isDemo: true,
+    });
+
+    const claim = await request(app)
+      .post(`/api/volunteers/claim/${incident._id}`)
+      .set('Authorization', authorization)
+      .send({});
+    expect(claim.status).toBe(201);
+    expect(claim.body.data.volunteerName).toBe(claimant.displayName);
+
+    for (const status of ['acknowledged', 'in_progress', 'completed']) {
+      const progress = await request(app)
+        .patch(`/api/volunteers/assignments/${claim.body.data._id}`)
+        .set('Authorization', authorization)
+        .send({ status });
+      expect(progress.status).toBe(200);
+    }
+
+    expect((await User.findById(claimant._id)).profile.availability).toBe('available');
+    expect((await Incident.findById(incident._id)).status).toBe('assistance_delivered');
+  });
+});
+
 // ── Test 9: Analytics ─────────────────────────────────────────────────────────
 describe('Analytics', () => {
   dbTest('TEST 21: Dashboard stats come from real DB records', async () => {
@@ -516,7 +601,8 @@ describe('Analytics', () => {
 // ── Test 10: Persistence ──────────────────────────────────────────────────────
 describe('Persistence', () => {
   dbTest('TEST 12: Incident is retrievable after creation', async () => {
-    const res = await request(app).get(`/api/incidents/${createdIncidentId}`);
+    const res = await request(app).get(`/api/incidents/${createdIncidentId}`)
+      .set('Authorization', `Bearer ${coordinatorToken}`);
     expect(res.status).toBe(200);
     expect(res.body.data._id).toBe(createdIncidentId);
     expect(res.body.data.ref).toBe(createdIncidentRef);
@@ -654,7 +740,8 @@ describe('Demo data and analytics consistency', () => {
     await seedDemoData();
     await seedDemoData();
 
-    const res = await request(app).get('/api/analytics/summary?isDemo=true');
+    const res = await request(app).get('/api/analytics/summary?isDemo=true')
+      .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(res.body.data.incidents.total).toBe(6);
     expect(res.body.data.volunteers).toEqual({ total: 4, available: 2, assigned: 2 });

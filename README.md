@@ -10,6 +10,9 @@ SahyogAI coordinates disaster emergency requests, volunteers, and relief resourc
 
 **Key capabilities:**
 - Multilingual emergency intake (English + Telugu)
+- Public, no-login citizen SOS intake from the home page
+- One-click demo access for Coordinator, Administrator, Volunteer, and Analyst roles
+- Role-based navigation for dispatch, inventory, administration, and analytics
 - Optional browser speech-to-text for emergency reports (microphone permission and browser support required)
 - Server-side AI triage via Gemini API (with deterministic fallback)
 - Genuine duplicate detection using multi-signal similarity scoring
@@ -93,7 +96,7 @@ This creates:
 
 The seed command can be rerun without duplicating demo records. Untouched legacy demo inventory is upgraded to the representative stock levels; inventory with recorded movements is preserved.
 
-The login dialog shows one-click demo access and credentials for each role. New users can self-register as volunteers only; elevated roles must use their seeded accounts. The Volunteers page displays each record's ID. Administrators and coordinators can add volunteers, deactivate or reactivate them, update availability, and assign available volunteers to incidents. Deactivation preserves the volunteer ID and assignment history, and is blocked while the volunteer has active assignments.
+The home page provides one-click demo access for each role. Citizens can submit SOS reports without signing in. New users can self-register as volunteers only; elevated roles must use their seeded accounts. Volunteers can claim open dispatch tasks and update progress; administrators and coordinators can also access the live dispatch board. The Volunteers page displays each record's ID. Administrators and coordinators can add volunteers, deactivate or reactivate them, update availability, and assign available volunteers to incidents. Deactivation preserves the volunteer ID and assignment history, and is blocked while the volunteer has active assignments.
 
 ### 4. Start the server
 
@@ -161,9 +164,9 @@ See `tests/api.test.js` and `tests/triage.test.js` for all test cases.
 ### Incidents
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/incidents` | Optional | List with filters |
+| GET | `/api/incidents` | Admin / Coordinator / Volunteer | List with filters |
 | POST | `/api/incidents` | Optional | Create incident |
-| GET | `/api/incidents/:id` | Optional | Get detail |
+| GET | `/api/incidents/:id` | Admin / Coordinator / Volunteer | Get detail |
 | PATCH | `/api/incidents/:id` | Coordinator+ | Update fields |
 | POST | `/api/incidents/:id/status` | Coordinator+ | Change status |
 | POST | `/api/incidents/:id/triage` | Optional | Run AI triage |
@@ -173,31 +176,32 @@ See `tests/api.test.js` and `tests/triage.test.js` for all test cases.
 ### Volunteers
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/volunteers` | Optional | List active volunteers; phone numbers remain private |
+| GET | `/api/volunteers` | Admin / Coordinator | List active volunteers; phone numbers remain private |
 | POST | `/api/volunteers` | Coordinator+ | Create a volunteer account |
 | GET | `/api/volunteers/me` | Required | Own profile + assignments |
 | PATCH | `/api/volunteers/:id/availability` | Required | Update availability |
 | DELETE | `/api/volunteers/:id` | Coordinator+ | Deactivate while preserving history and ID |
 | PATCH | `/api/volunteers/:id/reactivate` | Coordinator+ | Restore a deactivated volunteer |
 | POST | `/api/volunteers/assign?incidentId=X` | Coordinator+ | Assign volunteer |
+| POST | `/api/volunteers/claim/:incidentId` | Volunteer | Claim an open, unassigned incident |
 | PATCH | `/api/volunteers/assignments/:id` | Required | Update progress |
 
 ### Resources
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/resources` | Optional | List inventory |
+| GET | `/api/resources` | Admin / Coordinator | List inventory |
 | POST | `/api/resources` | Coordinator+ | Create resource |
 | POST | `/api/resources/:id/movement` | Coordinator+ | Stock action |
 
 ### Analytics
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/analytics/summary` | Optional | Dashboard KPIs |
-| GET | `/api/analytics/incidents-by-category` | Optional | Category breakdown |
-| GET | `/api/analytics/incidents-by-urgency` | Optional | Urgency breakdown |
-| GET | `/api/analytics/incidents-trend` | Optional | Daily trend |
-| GET | `/api/analytics/resource-usage` | Optional | Resource metrics |
-| GET | `/api/analytics/audit` | Coord/Admin | Audit trail |
+| GET | `/api/analytics/summary` | Admin / Analyst | Dashboard KPIs |
+| GET | `/api/analytics/incidents-by-category` | Admin / Analyst | Category breakdown |
+| GET | `/api/analytics/incidents-by-urgency` | Admin / Analyst | Urgency breakdown |
+| GET | `/api/analytics/incidents-trend` | Admin / Analyst | Daily trend |
+| GET | `/api/analytics/resource-usage` | Admin / Analyst | Resource metrics |
+| GET | `/api/analytics/audit` | Admin | Audit trail |
 
 ### Real-time
 | Endpoint | Description |

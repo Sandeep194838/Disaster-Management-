@@ -2,12 +2,13 @@
 
 const express = require('express');
 const Joi = require('joi');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Assignment = require('../models/Assignment');
 const Incident = require('../models/Incident');
 const audit = require('../services/auditService');
 const { broadcast } = require('../utils/sse');
-const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 const { asyncHandler, createError } = require('../middleware/errorHandler');
 
 const router = express.Router();
@@ -39,9 +40,99 @@ const progressSchema = Joi.object({
 });
 
 // ============================================================================
+// POST /api/volunteers/claim/:incidentId — volunteer claims an unassigned task
+// ============================================================================
+router.post('/claim/:incidentId', authenticate, authorize('volunteer'), asyncHandler(async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.incidentId)) throw createError('Incident not found.', 404);
+
+  const volunteer = await User.findOneAndUpdate(
+    { _id: req.user._id, role: 'volunteer', isActive: true, 'profile.availability': 'available' },
+    { $set: { 'profile.availability': 'assigned' } },
+    { new: true }
+  );
+  if (!volunteer) throw createError('You are not available to claim another task.', 409);
+
+  let incident;
+  let assignment;
+  let previousIncidentStatus;
+  try {
+    const claimableIncident = await Incident.findOne({
+      _id: req.params.incidentId,
+      status: { $in: ['verified', 'awaiting_assignment'] },
+      assignments: { $size: 0 },
+    }).select('status');
+    if (!claimableIncident) throw createError('This task is no longer available to claim.', 409);
+    previousIncidentStatus = claimableIncident.status;
+
+    incident = await Incident.findOneAndUpdate(
+      { _id: req.params.incidentId, status: previousIncidentStatus, assignments: { $size: 0 } },
+      {
+        $set: { status: 'assigned' },
+        $push: {
+          statusHistory: {
+            status: 'assigned',
+            changedBy: volunteer._id,
+            changedByName: volunteer.displayName,
+            note: `Claimed by volunteer ${volunteer.displayName}`,
+            timestamp: new Date(),
+          },
+        },
+      },
+      { new: true }
+    );
+    if (!incident) throw createError('This task is no longer available to claim.', 409);
+
+    assignment = await Assignment.create({
+      incident: incident._id,
+      incidentRef: incident.ref,
+      volunteer: volunteer._id,
+      volunteerName: volunteer.displayName,
+      status: 'sent',
+      assignedBy: volunteer._id,
+      assignedByName: volunteer.displayName,
+      isDemo: incident.isDemo,
+    });
+    incident.assignments.push(assignment._id);
+    await incident.save();
+  } catch (error) {
+    if (assignment) await Assignment.deleteOne({ _id: assignment._id });
+    if (incident) {
+      await Incident.updateOne(
+        { _id: incident._id, status: 'assigned' },
+        {
+          $set: { status: previousIncidentStatus },
+          $pull: {
+            statusHistory: { changedBy: volunteer._id, note: `Claimed by volunteer ${volunteer.displayName}` },
+            ...(assignment ? { assignments: assignment._id } : {}),
+          },
+        }
+      );
+    }
+    await User.updateOne(
+      { _id: volunteer._id, 'profile.availability': 'assigned' },
+      { $set: { 'profile.availability': 'available' } }
+    );
+    throw error;
+  }
+
+  await audit.record({
+    actor: volunteer._id, actorName: volunteer.displayName, actorRole: volunteer.role,
+    action: 'assignment:claimed', entityType: 'Assignment',
+    entityId: assignment._id, entityRef: assignment.ref,
+    changes: { incident: incident.ref }, isDemo: incident.isDemo, ipAddress: req.ip,
+  });
+  broadcast('assignment:created', {
+    assignmentRef: assignment.ref, incidentRef: incident.ref,
+    volunteerName: volunteer.displayName, status: assignment.status,
+  });
+
+  res.status(201).json({ success: true, data: assignment });
+}));
+
+// ============================================================================
 // GET /api/volunteers — list available volunteers
 // ============================================================================
-router.get('/', optionalAuth, asyncHandler(async (req, res) => {
+router.get('/', authenticate, authorize('admin', 'coordinator'), asyncHandler(async (req, res) => {
   const { availability, skill, page = 1, limit = 50 } = req.query;
   const canManage = req.user && ['admin', 'coordinator'].includes(req.user.role);
   const includeInactive = canManage && req.query.includeInactive === 'true';

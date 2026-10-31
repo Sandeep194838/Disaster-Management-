@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const Resource = require('../models/Resource');
 const audit = require('../services/auditService');
 const { broadcast } = require('../utils/sse');
-const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 const { asyncHandler, createError } = require('../middleware/errorHandler');
 
 const router = express.Router();
@@ -34,7 +34,7 @@ const movementSchema = Joi.object({
 // ============================================================================
 // GET /api/resources
 // ============================================================================
-router.get('/', optionalAuth, asyncHandler(async (req, res) => {
+router.get('/', authenticate, authorize('admin', 'coordinator'), asyncHandler(async (req, res) => {
   const { type, status, isDemo, page = 1, limit = 50 } = req.query;
   const filter = {};
   if (type && RESOURCE_TYPES.includes(type)) filter.resourceType = type;

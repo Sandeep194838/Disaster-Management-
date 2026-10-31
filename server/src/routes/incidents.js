@@ -75,7 +75,7 @@ function sanitizeForPublic(inc) {
 // ============================================================================
 // GET /api/incidents — list with filters, sorting, pagination
 // ============================================================================
-router.get('/', optionalAuth, asyncHandler(async (req, res) => {
+router.get('/', authenticate, authorize('admin', 'coordinator', 'volunteer'), asyncHandler(async (req, res) => {
   const {
     urgency, category, status, isDemo,
     search, page = 1, limit = 30,
@@ -125,7 +125,7 @@ router.get('/', optionalAuth, asyncHandler(async (req, res) => {
       .sort({ [sortBy]: sortOrder })
       .skip(skip)
       .limit(pageLimit)
-      .populate('assignments', 'status volunteerName ref')
+      .populate('assignments', 'status volunteerName ref volunteer')
       .lean({ virtuals: true }),
     Incident.countDocuments(filter),
   ]);
@@ -201,7 +201,7 @@ router.post('/', optionalAuth, asyncHandler(async (req, res) => {
 // ============================================================================
 // GET /api/incidents/:id — single incident detail
 // ============================================================================
-router.get('/:id', optionalAuth, asyncHandler(async (req, res) => {
+router.get('/:id', authenticate, authorize('admin', 'coordinator', 'volunteer'), asyncHandler(async (req, res) => {
   const incident = await Incident.findById(req.params.id)
     .populate('assignments')
     .populate('reportedBy', 'displayName username role')
@@ -506,4 +506,3 @@ router.post('/:id/link', authenticate, authorize('admin', 'coordinator'), asyncH
 }));
 
 module.exports = router;
-
