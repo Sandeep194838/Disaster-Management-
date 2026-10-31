@@ -1,0 +1,3234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SahyogAI — AI-Powered Disaster Response & Relief Coordination</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#EA580C">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              orange: '#EA580C',
+              orangeDark: '#C2410C',
+              orangeLight: '#FFEDD5',
+              charcoal: '#0F172A',
+              navy: '#1E293B',
+              alertRed: '#DC2626',
+              warningYellow: '#D97706',
+              successGreen: '#16A34A',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <style>
+    .urgent-pulse {
+      animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse-ring {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .75; transform: scale(1.02); }
+    }
+    .badge-critical { background-color: #FEE2E2; color: #991B1B; border: 1px solid #F87171; }
+    .badge-high { background-color: #FEF3C7; color: #92400E; border: 1px solid #FBBF24; }
+    .badge-medium, .badge-moderate { background-color: #E0E7FF; color: #3730A3; border: 1px solid #818CF8; }
+    .badge-low { background-color: #DCFCE7; color: #166534; border: 1px solid #4ADE80; }
+    
+    .nav-item.active {
+      color: #EA580C;
+      background-color: #FFEDD5;
+    }
+    #miniMap { height: 180px; width: 100%; border-radius: 0.75rem; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-orange-500 selection:text-white">
+
+  <!-- STANDALONE / OFFLINE MODE BANNER -->
+  <div id="modeBanner" class="bg-slate-800 text-slate-200 text-xs py-1.5 px-4 text-center border-b border-slate-700 flex items-center justify-center gap-2">
+    <span id="modeIcon" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+    <span id="modeText">Checking backend server connectivity...</span>
+  </div>
+
+  <!-- TOP BANNER: SITUATION REPORT & CONTROLS -->
+  <div class="bg-slate-900 text-white text-xs px-4 py-2 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex h-2.5 w-2.5 rounded-full bg-red-500 animate-ping"></span>
+        <span class="font-semibold text-orange-400" id="liveAlertHeader">OPERATIONAL CELL:</span>
+        <span class="text-slate-300" id="liveAlertDesc">Visakhapatnam Coastal Sector • Cyclone & Flood Grid</span>
+        <span class="hidden sm:inline-block text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">Prototype Sandbox</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- Live SSE indicator -->
+        <span class="flex items-center gap-1.5 text-[11px] text-slate-400" title="Realtime Server-Sent Events Sync">
+          <span id="sseIndicator" class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+          <span id="sseStatusText">Standby</span>
+        </span>
+        <span class="bg-orange-950 text-orange-300 px-2 py-0.5 rounded border border-orange-800">GVMC / APSDMA</span>
+        <!-- Language Switcher -->
+        <button id="langToggleBtn" onclick="toggleLanguage()" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-orange-400 px-2.5 py-1 rounded transition font-medium border border-slate-700">
+          <i class="fa-solid fa-language"></i>
+          <span id="langLabel">తెలుగు (Telugu)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAVIGATION BAR -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur shadow-sm border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <!-- Logo -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="navigate('home')">
+        <div class="w-10 h-10 rounded-xl bg-orange-600 text-white flex items-center justify-center shadow-md shadow-orange-600/30 font-black text-xl">
+          <i class="fa-solid fa-bolt-lightning"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xl font-black tracking-tight text-slate-900">Sahyog<span class="text-orange-600">AI</span></span>
+            <span class="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-orange-100 text-orange-800">Vizag V2</span>
+          </div>
+          <p class="text-[11px] text-slate-500 font-medium hidden sm:block">Intelligent Emergency Relief & Volunteer Dispatch</p>
+        </div>
+      </div>
+
+      <!-- Desktop Nav -->
+      <nav class="hidden lg:flex items-center gap-1">
+        <button onclick="navigate('home')" id="nav-home" class="nav-item active px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
+          <i class="fa-solid fa-house mr-1.5"></i><span data-i18n="nav_home">Home</span>
+        </button>
+        <button onclick="navigate('action')" id="nav-action" class="nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
+          <i class="fa-solid fa-triangle-exclamation mr-1.5 text-orange-600"></i><span data-i18n="nav_action">Submit SOS</span>
+        </button>
+        <button onclick="navigate('result')" id="nav-result" class="nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50 relative">
+          <i class="fa-solid fa-list-check mr-1.5 text-blue-600"></i><span data-i18n="nav_result">Dispatch Board</span>
+          <span id="activeCountBadge" class="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-red-600 text-white font-bold">0</span>
+        </button>
+        <button onclick="navigate('volunteers')" id="nav-volunteers" class="nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
+          <i class="fa-solid fa-users mr-1.5 text-emerald-600"></i><span data-i18n="nav_volunteers">Volunteers</span>
+        </button>
+        <button onclick="navigate('resources')" id="nav-resources" class="nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
+          <i class="fa-solid fa-boxes-stacked mr-1.5 text-amber-600"></i><span data-i18n="nav_resources">Relief Inventory</span>
+        </button>
+        <button onclick="navigate('analytics')" id="nav-analytics" class="nav-item px-3 py-2 rounded-lg text-sm font-semibold transition text-slate-700 hover:text-orange-600 hover:bg-orange-50/50">
+          <i class="fa-solid fa-chart-pie mr-1.5 text-purple-600"></i><span data-i18n="nav_analytics">Analytics</span>
+        </button>
+      </nav>
+
+      <!-- Auth Controls & Quick SOS -->
+      <div class="flex items-center gap-2">
+        <div id="userBadgeArea" class="hidden sm:flex items-center gap-2 text-xs">
+          <!-- Populated by auth JS -->
+        </div>
+        <button onclick="navigate('action')" class="bg-orange-600 hover:bg-orange-700 text-white px-3.5 py-2 rounded-lg text-sm font-bold shadow-sm shadow-orange-600/30 transition flex items-center gap-2">
+          <i class="fa-solid fa-paper-plane text-xs"></i>
+          <span data-i18n="btn_quick_sos">Report Emergency</span>
+        </button>
+        <button id="mobileMenuBtn" onclick="toggleMobileNav()" class="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Toggle Navigation">
+          <i class="fa-solid fa-bars text-lg"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Drawer Nav -->
+    <div id="mobileNavDrawer" class="hidden lg:hidden border-t border-slate-200 bg-white px-4 pt-2 pb-4 space-y-1">
+      <button onclick="navigate('home'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
+        <i class="fa-solid fa-house w-6 text-orange-600"></i><span data-i18n="nav_home">Home</span>
+      </button>
+      <button onclick="navigate('action'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center justify-between">
+        <span><i class="fa-solid fa-triangle-exclamation w-6 text-orange-600"></i><span data-i18n="nav_action">Submit SOS</span></span>
+        <span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold">Fast</span>
+      </button>
+      <button onclick="navigate('result'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center justify-between">
+        <span><i class="fa-solid fa-list-check w-6 text-blue-600"></i><span data-i18n="nav_result">Dispatch Board</span></span>
+        <span id="mobileActiveCount" class="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full font-bold">0</span>
+      </button>
+      <button onclick="navigate('volunteers'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
+        <i class="fa-solid fa-users w-6 text-emerald-600"></i><span data-i18n="nav_volunteers">Volunteers</span>
+      </button>
+      <button onclick="navigate('resources'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
+        <i class="fa-solid fa-boxes-stacked w-6 text-amber-600"></i><span data-i18n="nav_resources">Relief Inventory</span>
+      </button>
+      <button onclick="navigate('analytics'); closeMobileNav()" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-orange-50 flex items-center">
+        <i class="fa-solid fa-chart-pie w-6 text-purple-600"></i><span data-i18n="nav_analytics">Analytics</span>
+      </button>
+      <div id="mobileUserArea" class="pt-2 border-t border-slate-100 flex items-center justify-between">
+        <!-- Filled by auth JS -->
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+    <!-- ============================================== -->
+    <!-- SCREEN 1: HOME SCREEN                          -->
+    <!-- ============================================== -->
+    <section id="screen-home" class="space-y-12">
+      <!-- Hero -->
+      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white p-6 sm:p-12 lg:p-16 shadow-2xl border border-slate-700">
+        <div class="absolute -right-20 -top-20 w-96 h-96 bg-orange-600/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -left-20 -bottom-20 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 max-w-3xl space-y-6">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-xs sm:text-sm font-medium">
+            <span class="w-2 h-2 rounded-full bg-orange-400"></span>
+            <span data-i18n="hero_pill">Built for Visakhapatnam & Coastal Disaster Readiness</span>
+          </div>
+
+          <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight" data-i18n="hero_promise">
+            Turning disaster chaos into organized relief through AI triage and real-time volunteer coordination.
+          </h1>
+
+          <p class="text-base sm:text-lg text-slate-300 leading-relaxed font-normal" data-i18n="hero_problem">
+            When cyclones and flash floods hit coastal Andhra Pradesh, rescue lines are inundated with duplicate, unstructured distress reports. SahyogAI ingests English and Telugu messages, analyzes urgency using AI with deterministic fallbacks, detects duplicate requests, and streamlines volunteer dispatch.
+          </p>
+
+          <div class="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <button onclick="navigate('action')" class="bg-orange-600 hover:bg-orange-500 text-white text-base sm:text-lg font-bold px-8 py-4 rounded-xl shadow-lg shadow-orange-600/40 transition flex items-center justify-center gap-3 transform hover:-translate-y-0.5">
+              <i class="fa-solid fa-bolt text-yellow-300"></i>
+              <span data-i18n="hero_cta">Start Emergency Triage & Dispatch</span>
+              <i class="fa-solid fa-arrow-right text-sm"></i>
+            </button>
+            <button onclick="navigate('result')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold px-6 py-4 rounded-xl transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-users text-orange-400"></i>
+              <span data-i18n="hero_volunteer_hub">View Live Dispatch Board</span>
+            </button>
+          </div>
+
+          <!-- Verified System Capabilities -->
+          <div class="pt-6 grid grid-cols-2 sm:grid-cols-3 gap-4 border-t border-slate-800/80">
+            <div>
+              <div class="text-2xl sm:text-3xl font-black text-orange-400">Multi-Signal</div>
+              <div class="text-xs text-slate-400">Semantic & Geo Duplicate Detection</div>
+            </div>
+            <div>
+              <div class="text-2xl sm:text-3xl font-black text-white">Telugu + EN</div>
+              <div class="text-xs text-slate-400">Bilingual Emergency Intake</div>
+            </div>
+            <div class="col-span-2 sm:col-span-1">
+              <div class="text-2xl sm:text-3xl font-black text-emerald-400">Live Sync</div>
+              <div class="text-xs text-slate-400">Instant Cross-Client Coordination</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Before and After Comparison -->
+      <div class="space-y-6">
+        <div class="text-center max-w-2xl mx-auto">
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900" data-i18n="chaos_vs_order_title">The Cyclone Rescue Bottleneck</h2>
+          <p class="text-slate-600 text-sm sm:text-base mt-2" data-i18n="chaos_vs_order_subtitle">Why traditional uncoordinated messaging fails ground rescue workers.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-red-50/60 border border-red-200 rounded-2xl p-6 space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-red-100 text-red-700 flex items-center justify-center font-bold">
+                <i class="fa-solid fa-xmark text-lg"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-red-900 text-lg" data-i18n="scenario_before_title">Before: Chaotic Forwarded Messages</h3>
+                <p class="text-xs text-red-700">Delayed triage, blind dispatch, duplicate truck runs</p>
+              </div>
+            </div>
+            <ul class="space-y-3 text-sm text-red-950">
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-red-500 mt-1"></i>
+                <span><strong>Hundreds of forwards:</strong> Urgent medical requests get lost amid rumors and outdated information.</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-truck-ramp-box text-red-500 mt-1"></i>
+                <span><strong>Unchecked duplication:</strong> Multiple volunteer squads deploy to the same location while nearby areas receive nothing.</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-language text-red-500 mt-1"></i>
+                <span><strong>Language barriers:</strong> Regional Telugu dialects or mixed phrases take precious minutes to translate manually.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-6 space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                <i class="fa-solid fa-check text-lg"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-emerald-900 text-lg" data-i18n="scenario_after_title">After: SahyogAI Triage & Orchestration</h3>
+                <p class="text-xs text-emerald-700">Structured urgency, genuine similarity checks, tracked inventory</p>
+              </div>
+            </div>
+            <ul class="space-y-3 text-sm text-emerald-950">
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-bolt text-emerald-600 mt-1"></i>
+                <span><strong>Bilingual Structured Triage:</strong> Extracts affected people, trapped status, and supplies needed.</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-clone text-emerald-600 mt-1"></i>
+                <span><strong>Genuine Duplicate Search:</strong> Jaccard token analysis and geo-proximity detect potential duplicates across real records.</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="fa-solid fa-lock text-emerald-600 mt-1"></i>
+                <span><strong>Atomic Dispatch & Tracking:</strong> Assignments and relief supplies lock in real-time, preventing double allocation.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3-Step Pipeline -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+        <h3 class="font-bold text-lg text-slate-900 mb-6 flex items-center gap-2">
+          <i class="fa-solid fa-route text-orange-600"></i>
+          <span data-i18n="workflow_title">Integrated Disaster Response Workflow</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div class="flex items-start gap-3">
+            <div class="w-9 h-9 rounded-xl bg-orange-100 text-orange-700 font-extrabold flex items-center justify-center shrink-0">1</div>
+            <div>
+              <h4 class="font-bold text-slate-800 text-sm">Citizen SOS Intake</h4>
+              <p class="text-xs text-slate-600 mt-1">Bilingual report capture with optional coordinates and people count.</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-extrabold flex items-center justify-center shrink-0">2</div>
+            <div>
+              <h4 class="font-bold text-slate-800 text-sm">AI Triage & Classification</h4>
+              <p class="text-xs text-slate-600 mt-1">Server or fallback engine assesses urgency & key needs.</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 font-extrabold flex items-center justify-center shrink-0">3</div>
+            <div>
+              <h4 class="font-bold text-slate-800 text-sm">Duplicate Check</h4>
+              <p class="text-xs text-slate-600 mt-1">Evaluates similarity against recent records for coordinator review.</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 font-extrabold flex items-center justify-center shrink-0">4</div>
+            <div>
+              <h4 class="font-bold text-slate-800 text-sm">Smart Dispatch</h4>
+              <p class="text-xs text-slate-600 mt-1">Assign verified volunteers and reserve atomic relief resources.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- SCREEN 2: SOS INTAKE & AI TRIAGE FORM          -->
+    <!-- ============================================== -->
+    <section id="screen-action" class="hidden space-y-8">
+      <div class="border-b border-slate-200 pb-4">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-orange-600"></span>
+              <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900" data-i18n="action_title">Emergency SOS Intake & AI Triage</h1>
+            </div>
+            <p class="text-sm text-slate-600 mt-1" data-i18n="action_subtitle">
+              Type or paste raw distress messages in English, Telugu, or mixed Tanglish. Our server evaluates urgency with fallback resilience.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs text-slate-500" data-i18n="quick_fill_label">Try Vizag examples:</span>
+            <button onclick="fillExample(1)" class="text-xs bg-slate-100 hover:bg-orange-100 text-slate-700 hover:text-orange-700 font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 transition">
+              <i class="fa-solid fa-kit-medical mr-1 text-red-500"></i>MVP Colony Insulin
+            </button>
+            <button onclick="fillExample(2)" class="text-xs bg-slate-100 hover:bg-orange-100 text-slate-700 hover:text-orange-700 font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 transition">
+              <i class="fa-solid fa-water mr-1 text-blue-500"></i>RK Beach Flood (Telugu)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <!-- Form Column -->
+        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+          <form id="sosForm" onsubmit="handleTriageSubmit(event)" class="space-y-5">
+            <!-- Category Selection -->
+            <div>
+              <label class="block text-sm font-bold text-slate-800 mb-2">
+                <span data-i18n="form_category_label">Primary Need Category</span>
+                <span class="text-red-500">*</span>
+              </label>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="categoryPillGroup">
+                <button type="button" onclick="selectCategory('Medical Emergency')" class="category-pill py-2 px-2.5 rounded-xl border border-orange-500 bg-orange-50 text-orange-700 ring-2 ring-orange-200 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Medical Emergency">
+                  <i class="fa-solid fa-heart-pulse text-red-600"></i><span>Medical</span>
+                </button>
+                <button type="button" onclick="selectCategory('Flooding')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Flooding">
+                  <i class="fa-solid fa-water text-blue-600"></i><span>Flooding</span>
+                </button>
+                <button type="button" onclick="selectCategory('Food & Drinking Water')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Food & Drinking Water">
+                  <i class="fa-solid fa-bottle-water text-emerald-600"></i><span>Food/Water</span>
+                </button>
+                <button type="button" onclick="selectCategory('Roadblock & Fallen Trees')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Roadblock & Fallen Trees">
+                  <i class="fa-solid fa-road-barrier text-amber-600"></i><span>Roadblock</span>
+                </button>
+                <button type="button" onclick="selectCategory('Trapped / Missing People')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Trapped / Missing People">
+                  <i class="fa-solid fa-person-circle-exclamation text-red-700"></i><span>Trapped</span>
+                </button>
+                <button type="button" onclick="selectCategory('Shelter')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Shelter">
+                  <i class="fa-solid fa-tents text-indigo-600"></i><span>Shelter</span>
+                </button>
+                <button type="button" onclick="selectCategory('Fire')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Fire">
+                  <i class="fa-solid fa-fire text-orange-600"></i><span>Fire</span>
+                </button>
+                <button type="button" onclick="selectCategory('Other Emergency')" class="category-pill py-2 px-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5" data-category="Other Emergency">
+                  <i class="fa-solid fa-circle-question text-slate-500"></i><span>Other</span>
+                </button>
+              </div>
+              <input type="hidden" id="selectedCategory" name="category" value="Medical Emergency">
+            </div>
+
+            <!-- Location Input -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label for="locationInput" class="block text-sm font-bold text-slate-800">
+                  <span data-i18n="form_location_label">Location / Landmark in Visakhapatnam</span>
+                  <span class="text-red-500">*</span>
+                </label>
+                <button type="button" onclick="captureGPS()" class="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                  <i class="fa-solid fa-crosshairs"></i> Use Current GPS
+                </button>
+              </div>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <i class="fa-solid fa-location-dot"></i>
+                </div>
+                <input 
+                  type="text" 
+                  id="locationInput" 
+                  required
+                  placeholder="e.g. MVP Colony Sector 4 near community park"
+                  class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm text-slate-900"
+                  oninput="saveDraft()"
+                >
+              </div>
+              <div id="gpsCoordsNotice" class="hidden text-[11px] text-emerald-700 font-medium mt-1 flex items-center gap-1">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>Captured approximate coordinates: <span id="gpsCoordsDisplay"></span></span>
+              </div>
+              <div id="locationError" class="hidden text-xs text-red-600 font-semibold mt-1">Please specify a location or landmark.</div>
+            </div>
+
+            <!-- Message Textarea -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label for="rawMessageInput" class="block text-sm font-bold text-slate-800">
+                  <span data-i18n="form_message_label">Emergency Details</span>
+                  <span class="text-red-500">*</span>
+                </label>
+                <span class="text-xs text-orange-600 font-medium">English, Telugu, or Tanglish</span>
+              </div>
+              <textarea 
+                id="rawMessageInput" 
+                rows="4" 
+                required
+                placeholder="Describe what is happening: 'Water level rising quickly in our house. 4 people on the terrace including elderly heart patient. Need rescue boat and medicines.'"
+                class="w-full p-3.5 rounded-xl border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none text-sm text-slate-900"
+                oninput="saveDraft()"
+              ></textarea>
+              <div id="messageError" class="hidden text-xs text-red-600 font-semibold mt-1">Please describe the emergency (minimum 10 characters).</div>
+            </div>
+
+            <!-- Details: People count & optional callback phone -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label for="peopleCountInput" class="block text-xs font-bold text-slate-700 mb-1">
+                  Estimated People Affected
+                </label>
+                <select id="peopleCountInput" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 bg-white outline-none focus:border-orange-500">
+                  <option value="1-3">1 - 3 Individuals</option>
+                  <option value="4-8" selected>4 - 8 Family members</option>
+                  <option value="10-25">10 - 25 Community cluster</option>
+                  <option value="25+">25+ Neighborhood / Shelter</option>
+                </select>
+              </div>
+              <div>
+                <label for="contactInput" class="block text-xs font-bold text-slate-700 mb-1">
+                  Callback Phone <span class="text-slate-400 font-normal">(Optional, protected)</span>
+                </label>
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">+91</div>
+                  <input 
+                    type="tel" 
+                    id="contactInput" 
+                    placeholder="9876543210"
+                    class="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 outline-none focus:border-orange-500"
+                    oninput="saveDraft()"
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- Demo Mode Checkbox -->
+            <div class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
+              <input type="checkbox" id="demoCheckbox" checked class="w-4 h-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500">
+              <label for="demoCheckbox" class="text-slate-700 font-medium">
+                Tag as <strong>Demonstration Record</strong> (keeps sample sandbox separated from production operations)
+              </label>
+            </div>
+
+            <!-- Submit Button -->
+            <button 
+              type="submit" 
+              id="submitTriageBtn" 
+              class="w-full bg-orange-600 hover:bg-orange-500 text-white font-extrabold text-base py-3.5 px-6 rounded-xl shadow-md shadow-orange-600/30 transition flex items-center justify-center gap-2"
+            >
+              <i class="fa-solid fa-microchip"></i>
+              <span data-i18n="btn_submit_triage">Submit SOS & Run AI Triage</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- AI Preview & Duplicate Panel Column -->
+        <div class="lg:col-span-5 space-y-6">
+          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <h3 class="font-bold text-sm text-slate-900">AI Triage & Decision Support</h3>
+              </div>
+              <span id="aiEngineTag" class="text-[11px] font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">Ready</span>
+            </div>
+
+            <!-- Initial Idle State -->
+            <div id="aiEmptyState" class="py-10 text-center space-y-3">
+              <div class="w-14 h-14 mx-auto rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center text-xl">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+              </div>
+              <div class="max-w-xs mx-auto">
+                <p class="font-bold text-slate-800 text-sm">Ready for SOS Intake</p>
+                <p class="text-xs text-slate-500 mt-1">Submit your distress report to see instant AI evaluation, entity extraction, and duplicate candidate checks.</p>
+              </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="aiLoadingState" class="hidden py-10 text-center space-y-4">
+              <div class="inline-block relative">
+                <div class="w-12 h-12 rounded-full border-4 border-orange-200 border-t-orange-600 animate-spin"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-orange-600 text-xs font-bold">
+                  <i class="fa-solid fa-bolt"></i>
+                </div>
+              </div>
+              <div>
+                <p class="font-bold text-slate-900 text-sm">Processing Emergency Assessment...</p>
+                <p class="text-xs text-slate-500 mt-1">Calling triage • Parsing regional context • Comparing duplicate records</p>
+              </div>
+            </div>
+
+            <!-- Error State -->
+            <div id="aiErrorState" class="hidden py-6 text-center space-y-3 bg-red-50/60 rounded-xl p-4 border border-red-200">
+              <div class="w-10 h-10 mx-auto rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                <i class="fa-solid fa-circle-exclamation text-base"></i>
+              </div>
+              <div>
+                <p class="font-bold text-red-900 text-sm">Triage Assessment Error</p>
+                <p class="text-xs text-red-700 mt-1" id="aiErrorMessage">Could not process report.</p>
+              </div>
+            </div>
+
+            <!-- Success Outcome Card -->
+            <div id="aiResultState" class="hidden space-y-4 pt-2">
+              <!-- Engine source indicator banner -->
+              <div id="sourceBanner" class="p-2.5 rounded-xl text-xs flex items-center justify-between border"></div>
+
+              <div class="space-y-3 text-xs">
+                <div class="flex items-center justify-between">
+                  <span class="text-slate-500 font-medium">Recommended Urgency:</span>
+                  <span id="resUrgencyBadge" class="badge-critical px-2.5 py-1 rounded-full font-bold uppercase text-[11px]"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-slate-500 font-medium">Classified Category:</span>
+                  <span id="resCategory" class="font-bold text-slate-800"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-slate-500 font-medium">Assigned Ticket Reference:</span>
+                  <span id="resTicketRef" class="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded"></span>
+                </div>
+
+                <!-- Immediate Needs -->
+                <div>
+                  <span class="text-slate-500 font-medium block mb-1">Extracted Immediate Needs:</span>
+                  <div id="resNeeds" class="flex flex-wrap gap-1.5"></div>
+                </div>
+
+                <!-- Summary brief -->
+                <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                  <span class="text-slate-500 font-semibold block mb-0.5">Rescue Dispatch Brief:</span>
+                  <p id="resSummary" class="text-slate-800 font-medium leading-relaxed"></p>
+                </div>
+
+                <!-- Duplicate Detection Outcome -->
+                <div id="resDuplicateContainer" class="p-3 rounded-xl border text-xs space-y-1.5"></div>
+              </div>
+
+              <!-- Button to view on dispatch board -->
+              <button onclick="navigate('result')" class="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2">
+                <span>View on Shared Dispatch Board</span>
+                <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Safety / Coordinator Disclaimer Notice -->
+          <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs space-y-1.5">
+            <div class="flex items-center gap-2 text-amber-900 font-bold">
+              <i class="fa-solid fa-shield-halved text-amber-600"></i>
+              <span>Coordinator Decision Support Disclaimer</span>
+            </div>
+            <p class="text-amber-800 leading-relaxed">
+              AI provides provisional classification and does NOT replace trained emergency personnel. Coordinators retain authority to verify, override urgency, or link related records.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- SCREEN 3: RESULT / SHARED DISPATCH BOARD       -->
+    <!-- ============================================== -->
+    <section id="screen-result" class="hidden space-y-6">
+      <!-- Title & Filters Bar -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900" data-i18n="dispatch_title">Shared Dispatch Board</h1>
+            <span id="syncTimestamp" class="text-xs text-slate-400 font-mono hidden sm:inline ml-2">Synced</span>
+          </div>
+          <p class="text-sm text-slate-600 mt-1" data-i18n="dispatch_subtitle">
+            Central real-time incident queue with duplicate linking, assignment tracking, and status progression.
+          </p>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Urgency Filter -->
+          <select id="urgencyFilter" onchange="fetchIncidents()" class="text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 font-medium text-slate-700 outline-none focus:border-orange-500">
+            <option value="ALL">All Urgencies</option>
+            <option value="Critical">🔴 Critical</option>
+            <option value="High">🟡 High</option>
+            <option value="Medium">🔵 Medium</option>
+            <option value="Low">🟢 Low</option>
+          </select>
+
+          <!-- Status Filter -->
+          <select id="statusFilter" onchange="fetchIncidents()" class="text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 font-medium text-slate-700 outline-none focus:border-orange-500">
+            <option value="ALL">All Statuses</option>
+            <option value="submitted">Submitted</option>
+            <option value="under_review">Under Review</option>
+            <option value="verified">Verified</option>
+            <option value="awaiting_assignment">Awaiting Assignment</option>
+            <option value="assigned">Assigned</option>
+            <option value="in_progress">In Progress</option>
+            <option value="assistance_delivered">Assistance Delivered</option>
+            <option value="resolved">Resolved</option>
+          </select>
+
+          <!-- Search Input -->
+          <div class="relative">
+            <input 
+              type="text" 
+              id="searchFilter" 
+              placeholder="Search ref, location..."
+              onkeydown="if(event.key==='Enter') fetchIncidents()"
+              class="text-xs bg-white border border-slate-300 rounded-xl pl-8 pr-3 py-2 font-medium text-slate-700 outline-none focus:border-orange-500 w-36 sm:w-48"
+            >
+            <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+          </div>
+
+          <!-- Refresh Button -->
+          <button onclick="fetchIncidents()" class="text-xs bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-2 rounded-xl transition flex items-center gap-1 font-semibold">
+            <i class="fa-solid fa-rotate text-slate-500"></i>
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Advisory Banner (With Source & Timestamp, no fake LIVE claims) -->
+      <div class="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-orange-600/30 text-orange-400 flex items-center justify-center text-lg shrink-0 border border-orange-500/40">
+            <i class="fa-solid fa-road-barrier"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-orange-400">Hazard Advisory (Source: GVMC Field Cell)</span>
+              <span class="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-mono">Reported</span>
+            </div>
+            <p class="text-xs text-slate-300 mt-0.5">
+              Beach Road near YMCA partially inundated. MVP Colony Sector 4 lane blocked by downed banyan tree. Convoys route via Waltair Main Road.
+            </p>
+          </div>
+        </div>
+        <button onclick="navigate('action')" class="bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition flex items-center gap-1.5 shrink-0">
+          <i class="fa-solid fa-plus"></i>
+          <span>Add SOS Report</span>
+        </button>
+      </div>
+
+      <!-- Stats Bar -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-slate-500 font-semibold">Total Filtered</div>
+          <div class="text-2xl font-black text-slate-900 mt-1" id="statTotalCount">0</div>
+        </div>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-red-600 font-semibold">Critical Pending</div>
+          <div class="text-2xl font-black text-red-600 mt-1" id="statCriticalCount">0</div>
+        </div>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-amber-600 font-semibold">Assigned / In Progress</div>
+          <div class="text-2xl font-black text-amber-600 mt-1" id="statClaimedCount">0</div>
+        </div>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-emerald-600 font-semibold">Assistance Delivered</div>
+          <div class="text-2xl font-black text-emerald-600 mt-1" id="statResolvedCount">0</div>
+        </div>
+      </div>
+
+      <!-- Incidents Cards Grid -->
+      <div id="ticketsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="ticketsEmptyState" class="hidden py-16 bg-white rounded-2xl border border-slate-200 text-center p-6 space-y-3">
+        <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-2xl">
+          <i class="fa-solid fa-inbox"></i>
+        </div>
+        <h3 class="font-bold text-slate-800 text-base">No Incidents Found</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto">No records match your selected filter criteria. Try resetting filters or submit a new SOS request.</p>
+        <button onclick="resetFilters()" class="text-xs bg-orange-600 text-white font-bold px-4 py-2 rounded-lg">Reset Filters</button>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- SCREEN 4: VOLUNTEER MANAGEMENT                 -->
+    <!-- ============================================== -->
+    <section id="screen-volunteers" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Volunteer Response Cells</h1>
+          </div>
+          <p class="text-sm text-slate-600 mt-1">
+            Registered ground response teams, NSS cells, and specialized rescue units for Visakhapatnam.
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <div id="volunteerAdminControls" class="hidden flex items-center gap-2">
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 whitespace-nowrap">
+              <input id="showInactiveVolunteers" type="checkbox" onchange="fetchVolunteers()" class="rounded border-slate-300">
+              Show inactive
+            </label>
+            <button onclick="toggleAddVolunteerForm()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl font-semibold whitespace-nowrap">
+              <i class="fa-solid fa-user-plus mr-1"></i>Add Volunteer
+            </button>
+          </div>
+          <select id="volAvailabilityFilter" onchange="fetchVolunteers()" class="text-xs bg-white border border-slate-300 rounded-xl px-3 py-2 font-medium text-slate-700 outline-none">
+            <option value="">All Availability</option>
+            <option value="available">🟢 Available Only</option>
+            <option value="assigned">🟡 Assigned</option>
+            <option value="unavailable">🔴 Unavailable</option>
+          </select>
+          <button onclick="fetchVolunteers()" class="text-xs bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-xl font-semibold">
+            <i class="fa-solid fa-rotate text-slate-500 mr-1"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <form id="newVolunteerForm" onsubmit="createVolunteer(event)" class="hidden bg-white rounded-2xl border border-slate-200 p-5 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <h2 class="sm:col-span-2 font-bold text-slate-900">Add Volunteer Account</h2>
+        <label class="text-xs font-semibold text-slate-700">Display name
+          <input id="newVolunteerName" required minlength="2" maxlength="100" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" autocomplete="name">
+        </label>
+        <label class="text-xs font-semibold text-slate-700">Username
+          <input id="newVolunteerUsername" required minlength="3" maxlength="50" pattern="[A-Za-z0-9_.\-]+" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" autocomplete="username">
+        </label>
+        <label class="text-xs font-semibold text-slate-700">Temporary password (8+ characters)
+          <input id="newVolunteerPassword" type="password" required minlength="8" maxlength="128" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" autocomplete="new-password">
+        </label>
+        <label class="text-xs font-semibold text-slate-700">Service area
+          <input id="newVolunteerArea" maxlength="200" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal">
+        </label>
+        <label class="text-xs font-semibold text-slate-700">Team affiliation
+          <input id="newVolunteerTeam" maxlength="100" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal">
+        </label>
+        <label class="text-xs font-semibold text-slate-700">Skills (comma-separated)
+          <input id="newVolunteerSkills" maxlength="500" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" placeholder="First Aid, Water Rescue">
+        </label>
+        <div class="sm:col-span-2 flex justify-end gap-2">
+          <button type="button" onclick="toggleAddVolunteerForm(false)" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-semibold">Cancel</button>
+          <button type="submit" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold">Create Volunteer</button>
+        </div>
+      </form>
+
+      <div id="volunteersGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- SCREEN 5: RELIEF RESOURCES INVENTORY           -->
+    <!-- ============================================== -->
+    <section id="screen-resources" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-600"></span>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Relief Resources & Inventory</h1>
+          </div>
+          <p class="text-sm text-slate-600 mt-1">
+            Tracked depot inventories: drinking water, food rations, boats, and first-aid kits with atomic reserve/dispatch.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 self-start sm:self-center">
+          <button id="resourceCreateButton" onclick="openCreateResourceModal()" class="hidden text-xs bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-xl font-bold">
+            <i class="fa-solid fa-plus mr-1"></i> Create New Goods
+          </button>
+          <button onclick="fetchResources()" class="text-xs bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-xl font-semibold">
+            <i class="fa-solid fa-rotate text-slate-500 mr-1"></i> Refresh Stock
+          </button>
+        </div>
+      </div>
+
+      <div id="resourcesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- Inventory goods creation and restock modal -->
+    <div id="resourceModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <form onsubmit="submitResourceModal(event)" class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5">
+        <div class="flex items-start justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h2 id="resourceModalTitle" class="text-xl font-black text-slate-900">Create New Goods</h2>
+            <p id="resourceModalDescription" class="text-xs text-slate-500 mt-1">Add a new product to the relief inventory.</p>
+          </div>
+          <button type="button" onclick="closeResourceModal()" aria-label="Close dialog" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <div id="resourceCreateFields" class="space-y-4">
+          <label class="block text-xs font-semibold text-slate-700">
+            Product Name
+            <input id="resourceName" type="text" maxlength="200" required class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-500">
+          </label>
+          <label class="block text-xs font-semibold text-slate-700">
+            Category
+            <select id="resourceType" required class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-500">
+              <option>Drinking Water</option>
+              <option>Food Packets</option>
+              <option>First-Aid Kits</option>
+              <option>Medicines</option>
+              <option>Blankets</option>
+              <option>Temporary Shelters</option>
+              <option>Rescue Equipment</option>
+              <option>Boats</option>
+              <option>Transport Vehicles</option>
+              <option>Communication Equipment</option>
+              <option>Baby Supplies</option>
+              <option>Sanitation Kits</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="block text-xs font-semibold text-slate-700">
+              Unit Type
+              <input id="resourceUnit" type="text" maxlength="50" placeholder="e.g. packets, litres, kits" required class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-500">
+            </label>
+            <label class="block text-xs font-semibold text-slate-700">
+              Warehouse Location
+              <input id="resourceLocation" type="text" maxlength="300" required class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-500">
+            </label>
+          </div>
+        </div>
+
+        <label class="block text-xs font-semibold text-slate-700">
+          <span id="resourceQuantityLabel">Initial Quantity Received</span>
+          <input id="resourceQuantity" type="number" min="1" step="1" value="1" required class="mt-1 w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-500">
+        </label>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeResourceModal()" class="text-xs bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-xl font-semibold">Cancel</button>
+          <button id="resourceModalSubmit" type="submit" class="text-xs bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl font-bold">Create Goods</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- SCREEN 6: DISASTER ANALYTICS DASHBOARD         -->
+    <!-- ============================================== -->
+    <section id="screen-analytics" class="hidden space-y-8">
+      <div class="border-b border-slate-200 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-purple-600"></span>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Disaster Response Analytics</h1>
+          </div>
+          <p class="text-sm text-slate-600 mt-1">
+            Live operational metrics computed directly from stored disaster records.
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="loadAnalytics()" class="text-xs bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-xl font-semibold">
+            <i class="fa-solid fa-rotate text-slate-500 mr-1"></i> Reload Metrics
+          </button>
+        </div>
+      </div>
+
+        <div class="rounded-2xl bg-slate-900 text-white p-5 sm:p-6 shadow-sm">
+          <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-4">
+            <div>
+              <p class="text-[11px] uppercase tracking-wider text-orange-300 font-bold">Visakhapatnam Relief Coordination</p>
+              <h2 class="text-lg font-black mt-1">Live Operational Overview</h2>
+            </div>
+            <p id="analyticsUpdated" class="text-[11px] text-slate-400">Waiting for live data</p>
+          </div>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] text-slate-300">Available stock units</p>
+              <p id="overviewAvailableStock" class="text-2xl font-black mt-1">0</p>
+            </div>
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] text-slate-300">Active critical SOS</p>
+              <p id="overviewCriticalSOS" class="text-2xl font-black mt-1 text-red-300">0</p>
+            </div>
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] text-slate-300">Resolved reports</p>
+              <p id="overviewResolved" class="text-2xl font-black mt-1 text-emerald-300">0</p>
+            </div>
+            <div class="rounded-xl bg-white/10 border border-white/10 p-3">
+              <p class="text-[11px] text-slate-300">Confirmed duplicates filtered</p>
+              <p class="text-2xl font-black mt-1"><span id="overviewDuplicateCount">0</span><span id="overviewDuplicateRate" class="text-sm text-purple-200 ml-2">0%</span></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-slate-500 font-semibold">Total Reports</div>
+          <div id="kpiTotal" class="text-2xl font-black text-slate-900 mt-1">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-red-600 font-semibold">Critical Incidents</div>
+          <div id="kpiCritical" class="text-2xl font-black text-red-600 mt-1">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-amber-600 font-semibold">Awaiting Assignment</div>
+          <div id="kpiAwaiting" class="text-2xl font-black text-amber-600 mt-1">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-blue-600 font-semibold">Active in Progress</div>
+          <div id="kpiProgress" class="text-2xl font-black text-blue-600 mt-1">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-emerald-600 font-semibold">Available Volunteers</div>
+          <div id="kpiVolAvail" class="text-2xl font-black text-emerald-600 mt-1">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="text-xs text-purple-600 font-semibold">Dispatched Supplies</div>
+          <div id="kpiDispatched" class="text-2xl font-black text-purple-600 mt-1">0</div>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-chart-pie text-orange-600"></i> Incidents by Urgency
+          </h3>
+          <div class="h-64 flex items-center justify-center">
+            <canvas id="urgencyChart"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-chart-column text-blue-600"></i> Incidents by Category
+          </h3>
+          <div class="h-64 flex items-center justify-center">
+            <canvas id="categoryChart"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-chart-line text-emerald-600"></i> Incident Trend (7 Days)
+          </h3>
+          <div class="h-64 flex items-center justify-center">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audit Log Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-slate-600"></i> Audit Trail (Recent Actions)
+          </h3>
+          <span class="text-[11px] text-slate-400">Chronological activity log</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+              <tr>
+                <th class="py-2.5 px-3">Timestamp</th>
+                <th class="py-2.5 px-3">Actor</th>
+                <th class="py-2.5 px-3">Action</th>
+                <th class="py-2.5 px-3">Target</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody" class="divide-y divide-slate-100">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================== -->
+  <!-- MODAL: INCIDENT DETAIL, DISPATCH & AUDIT       -->
+  <!-- ============================================== -->
+  <div id="taskModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-scale-in max-h-[90vh] overflow-y-auto">
+      
+      <div class="flex items-start justify-between border-b border-slate-100 pb-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="modalUrgencyBadge" class="badge-critical px-2 py-0.5 rounded text-xs font-bold uppercase"></span>
+            <span id="modalId" class="text-xs font-mono font-bold text-slate-500"></span>
+            <span id="modalDemoTag" class="hidden text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">DEMO</span>
+          </div>
+          <h3 id="modalTitle" class="text-lg font-black text-slate-900 mt-1"></h3>
+          <p id="modalLocation" class="text-xs text-slate-600 flex items-center gap-1 mt-0.5"></p>
+        </div>
+        <button onclick="closeTaskModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <!-- Message box -->
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+          <span class="font-bold text-slate-700 block">Reported Distress Text:</span>
+          <p id="modalMessage" class="text-slate-800 leading-relaxed font-medium"></p>
+        </div>
+
+        <!-- Optional Map if Coordinates Available -->
+        <div id="modalMapContainer" class="hidden space-y-1">
+          <span class="font-bold text-slate-700 flex items-center gap-1">
+            <i class="fa-solid fa-map-location-dot text-orange-600"></i> Reported Location (Approximate)
+          </span>
+          <div id="miniMap"></div>
+        </div>
+
+        <!-- Status & Volunteer Assignment Info -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <span class="text-slate-500 block mb-0.5">Assigned Volunteer:</span>
+            <span id="modalAssignee" class="font-bold text-slate-800">Unassigned</span>
+          </div>
+          <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <span class="text-slate-500 block mb-0.5">Current Status:</span>
+            <span id="modalStatus" class="font-bold text-orange-600"></span>
+          </div>
+        </div>
+
+        <!-- AI Triage Evaluation Detail -->
+        <div id="modalAiBox" class="bg-blue-50 border border-blue-200 p-3 rounded-xl space-y-1 text-blue-950">
+          <div class="flex items-center justify-between">
+            <span class="font-bold flex items-center gap-1.5">
+              <i class="fa-solid fa-microchip text-blue-600"></i> AI Triage Assessment
+            </span>
+            <span id="modalAiSource" class="font-mono text-[10px] bg-white px-2 py-0.5 rounded border border-blue-300"></span>
+          </div>
+          <p id="modalAiSummary" class="text-blue-900 leading-relaxed"></p>
+        </div>
+
+        <!-- Safe Route / Hazard Disclaimer -->
+        <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-amber-900 text-xs flex items-start gap-2">
+          <i class="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5"></i>
+          <div>
+            <span class="font-bold block">Route Safety Verification Notice</span>
+            <span class="text-[11px] text-amber-800">Route safety information has NOT been verified by this system. Emergency drivers must verify flood levels with NDRF or local traffic control before moving into flooded sectors.</span>
+          </div>
+        </div>
+
+        <!-- Duplicate check findings if any -->
+        <div id="modalDuplicatesBox" class="hidden bg-purple-50 border border-purple-200 p-3 rounded-xl space-y-2 text-purple-950">
+          <span class="font-bold flex items-center gap-1.5">
+            <i class="fa-solid fa-clone text-purple-600"></i> Related / Potential Duplicate Reports:
+          </span>
+          <div id="modalDuplicatesList" class="space-y-1.5 text-[11px]"></div>
+        </div>
+
+        <!-- Status Transition Actions -->
+        <div class="pt-2 border-t border-slate-100 space-y-2">
+          <label class="block font-bold text-slate-700">Update Incident Status:</label>
+          <div class="flex flex-wrap gap-2" id="modalStatusButtons">
+            <!-- Dynamically populated according to valid transitions -->
+          </div>
+        </div>
+
+        <!-- Assign Volunteer Form -->
+        <div class="pt-2 border-t border-slate-100 space-y-2" id="modalVolunteerSection">
+          <label class="block font-bold text-slate-700">Assign Available Volunteer / Team:</label>
+          <div class="flex gap-2">
+            <select id="modalVolunteerSelect" class="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs outline-none">
+              <option value="">Select Volunteer...</option>
+            </select>
+            <button onclick="assignVolunteerToCurrentIncident()" class="bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition">
+              Assign
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL: LOGIN / AUTHENTICATION                  -->
+  <!-- ============================================== -->
+  <div id="loginModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-scale-in">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="text-xl font-black text-slate-900">Sign In to SahyogAI</h3>
+          <p class="text-xs text-slate-500">Access coordinator tools, volunteer boards, and inventory controls</p>
+        </div>
+        <button onclick="closeLoginModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleLoginSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Username</label>
+          <input type="text" id="loginUsername" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 outline-none focus:border-orange-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+          <input type="password" id="loginPassword" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 outline-none focus:border-orange-500">
+        </div>
+        <div id="loginError" class="hidden text-xs text-red-600 font-semibold"></div>
+        <button type="submit" class="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm py-2.5 rounded-xl transition">
+          Sign In
+        </button>
+      </form>
+
+      <!-- Quick Demo Login Presets -->
+      <div class="pt-3 border-t border-slate-100 space-y-2">
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Demo Quick Access (One-Click):</span>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="quickLogin('coordinator', 'Coord@2024!')" class="text-xs bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700 font-semibold p-2 rounded-xl border border-slate-200 transition text-left">
+            <span class="block text-orange-600 font-bold">Coordinator</span>
+            <span class="text-[10px] text-slate-500">Manage dispatch & AI</span>
+          </button>
+          <button onclick="quickLogin('admin', 'Admin@2024!')" class="text-xs bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700 font-semibold p-2 rounded-xl border border-slate-200 transition text-left">
+            <span class="block text-orange-600 font-bold">Administrator</span>
+            <span class="text-[10px] text-slate-500">Full audit & system</span>
+          </button>
+          <button onclick="quickLogin('kiran_nss', 'Demo@2024!')" class="text-xs bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700 font-semibold p-2 rounded-xl border border-slate-200 transition text-left">
+            <span class="block text-orange-600 font-bold">Volunteer</span>
+            <span class="text-[10px] text-slate-500">Kiran (AU NSS)</span>
+          </button>
+          <button onclick="quickLogin('analyst', 'Analyst@2024!')" class="text-xs bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700 font-semibold p-2 rounded-xl border border-slate-200 transition text-left">
+            <span class="block text-orange-600 font-bold">Analyst</span>
+            <span class="text-[10px] text-slate-500">Read-only stats</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm border border-slate-700 transition-all duration-300">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+    <span id="toastMessage" class="font-semibold">Action completed.</span>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="bg-white border-t border-slate-200 py-6 text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="font-black text-slate-800">SahyogAI</span>
+        <span>• Team Kaizen • Visakhapatnam Disaster Pilot</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span>Bilingual AI Triage Platform</span>
+        <span>•</span>
+        <span class="text-slate-400">DPDP Act Compliant Architecture</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============================================== -->
+  <!-- JAVASCRIPT APPLICATION CORE (WITH SMART FALLBACK) -->
+  <!-- ============================================== -->
+  <script>
+    // --- 1. CONFIGURATION & STATE ---
+    let isServerConnected = false;
+    const API_BASE = window.location.protocol === 'file:'
+      ? 'http://localhost:5000/api'
+      : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? `${window.location.protocol}//${window.location.hostname}:5000/api`
+          : '/api');
+
+    let currentUser = null;
+    let currentLang = 'en';
+    let incidents = [];
+    let volunteersList = [];
+    let resourcesList = [];
+    let currentModalIncident = null;
+    let sseSource = null;
+    let capturedCoordinates = null;
+    let leafletMapInstance = null;
+
+    // Chart.js references
+    let urgencyChartInstance = null;
+    let categoryChartInstance = null;
+    let trendChartInstance = null;
+
+    // --- 2. LOCAL STANDALONE DATA STORE (USED WHEN SERVER IS OFFLINE) ---
+    const SEED_INCIDENTS = [
+      {
+        _id: "inc-vizag-001",
+        ref: "INC-VIZAG-001",
+        locationDescription: "MVP Colony Sector 4 near Apollo Pharmacy",
+        originalReport: "Water is entering our house in MVP colony near park, send boat pls, also my uncle needs BP medicine urgently.",
+        reportedCategory: "Medical Emergency",
+        category: "Medical Emergency",
+        effectiveUrgency: "Critical",
+        status: "awaiting_assignment",
+        createdAt: new Date(Date.now() - 12 * 60000).toISOString(),
+        aiTriage: {
+          source: "fallback",
+          incidentTitle: "Waterlogging & BP Medicine Shortage",
+          summary: "Residential flooding with elderly patient trapped; BP medicine and inflatable boat needed immediately.",
+          immediateNeeds: ["Inflatable Boat", "BP Medicine", "Senior Citizen Rescue"],
+          hazards: ["Submerged electrical pole reported"],
+          confidence: "medium"
+        },
+        coordinates: { lat: 17.7412, lng: 83.3325 },
+        isDemo: true
+      },
+      {
+        _id: "inc-vizag-002",
+        ref: "INC-VIZAG-002",
+        locationDescription: "Seethammadhara North near HB Colony",
+        originalReport: "Severe power cut for 14 hours. Diabetic patient needs cold-chain insulin pens immediately before 2 PM.",
+        reportedCategory: "Medical Emergency",
+        category: "Medical Emergency",
+        effectiveUrgency: "Critical",
+        status: "assigned",
+        createdAt: new Date(Date.now() - 24 * 60000).toISOString(),
+        assignments: [{ volunteerName: "Kiran (AU NSS Rescue)" }],
+        aiTriage: {
+          source: "fallback",
+          incidentTitle: "Urgent Insulin Cold-Chain Delivery",
+          summary: "Diabetic patient requires refrigerated insulin pen delivery before critical afternoon deadline.",
+          immediateNeeds: ["Insulin Pens", "Ice Pack / Cooler Pack"],
+          hazards: ["Extended 14h power grid failure"],
+          confidence: "high"
+        },
+        coordinates: { lat: 17.7483, lng: 83.3180 },
+        isDemo: true
+      },
+      {
+        _id: "inc-vizag-003",
+        ref: "INC-VIZAG-003",
+        locationDescription: "Beach Road near YMCA",
+        originalReport: "High storm surge washed debris onto the main road near YMCA. 2 electric cables snapped and lying on wet asphalt.",
+        reportedCategory: "Roadblock & Fallen Trees",
+        category: "Roadblock & Fallen Trees",
+        effectiveUrgency: "High",
+        status: "submitted",
+        createdAt: new Date(Date.now() - 45 * 60000).toISOString(),
+        aiTriage: {
+          source: "fallback",
+          incidentTitle: "Snapped Live Cables on Wet Road",
+          summary: "Storm surge debris and 2 snapped power cables on Beach Road YMCA. Blocks rescue corridor.",
+          immediateNeeds: ["Power Grid Isolation", "Road Clearance Crew"],
+          hazards: ["Electrocution risk on wet road"],
+          confidence: "high"
+        },
+        coordinates: { lat: 17.7167, lng: 83.3150 },
+        isDemo: true
+      },
+      {
+        _id: "inc-vizag-004",
+        ref: "INC-VIZAG-004",
+        locationDescription: "RK Beach Fishing Hamlet",
+        originalReport: "సముద్రం నుంచి అలలు వస్తున్నాయి, మా ఇంట్లోకి వరద నీరు చేరింది. మేము నలుగురం టెర్రస్ పైన చిక్కుకున్నాము. దయచేసి బోట్ సహాయం పంపండి!",
+        reportedCategory: "Flooding",
+        category: "Flooding",
+        effectiveUrgency: "Critical",
+        status: "in_progress",
+        createdAt: new Date(Date.now() - 65 * 60000).toISOString(),
+        aiTriage: {
+          source: "fallback",
+          incidentTitle: "Terrace Evacuation Requested — Telugu Report",
+          summary: "Sea surge flooded home, 4 family members stranded on rooftop terrace requesting inflatable boat.",
+          immediateNeeds: ["Inflatable Raft", "Rooftop Evacuation"],
+          hazards: ["Storm surge waves"],
+          confidence: "medium"
+        },
+        coordinates: { lat: 17.7125, lng: 83.3210 },
+        isDemo: true
+      },
+      {
+        _id: "inc-vizag-005",
+        ref: "INC-VIZAG-005",
+        locationDescription: "Madhurawada Community Hall",
+        originalReport: "Makeshift relief school hall has 60 residents including 12 infants. Drinking water tank contaminated with flood runoff.",
+        reportedCategory: "Food & Drinking Water",
+        category: "Food & Drinking Water",
+        effectiveUrgency: "High",
+        status: "awaiting_assignment",
+        createdAt: new Date(Date.now() - 95 * 60000).toISOString(),
+        aiTriage: {
+          source: "fallback",
+          incidentTitle: "Contaminated Water Shortage in Camp",
+          summary: "Evacuation hall with 60 people and 12 infants has contaminated drinking water.",
+          immediateNeeds: ["Drinking Water 20L Cans", "Infant Formula", "Purification Tablets"],
+          hazards: ["Waterborne illness risk"],
+          confidence: "high"
+        },
+        coordinates: { lat: 17.8180, lng: 83.3512 },
+        isDemo: true
+      },
+      {
+        _id: "inc-vizag-006",
+        ref: "INC-VIZAG-006",
+        locationDescription: "Pithapuram Colony Lane 2",
+        originalReport: "Labor pain started. Ambulance cannot enter due to knee-deep water in lane 2. Need high-clearance 4x4 vehicle.",
+        reportedCategory: "Medical Emergency",
+        category: "Medical Emergency",
+        effectiveUrgency: "Critical",
+        status: "resolved",
+        createdAt: new Date(Date.now() - 140 * 60000).toISOString(),
+        aiTriage: {
+          source: "fallback",
+          incidentTitle: "Maternity Transport Completed",
+          summary: "Pregnant woman safely transferred via 4x4 high-clearance transport to KGH Hospital.",
+          immediateNeeds: ["4x4 Transport", "KGH Transfer"],
+          hazards: ["Flooded lane 2"],
+          confidence: "high"
+        },
+        isDemo: true
+      }
+    ];
+
+    const SEED_VOLUNTEERS = [
+      { _id: "vol-001", displayName: "Kiran (AU NSS Rescue)", role: "volunteer", profile: { availability: "available", serviceArea: "MVP Colony, Seethammadhara", skills: ["First Aid", "Water Rescue"], teamAffiliation: "AU NSS Cell" } },
+      { _id: "vol-002", displayName: "Priya (Red Cross Vizag)", role: "volunteer", profile: { availability: "available", serviceArea: "Dabagardens, Jagadamba", skills: ["Medical", "Elderly Care"], teamAffiliation: "Red Cross Student Cell" } },
+      { _id: "vol-003", displayName: "Team Delta (Rescue Squad)", role: "volunteer", profile: { availability: "assigned", serviceArea: "Beach Road, Port Area", skills: ["Boat Operation", "Heavy Equipment"], teamAffiliation: "Vizag Rescue Cell" } },
+      { _id: "vol-004", displayName: "Team Braver (4x4 Club)", role: "volunteer", profile: { availability: "available", serviceArea: "Madhurawada, Anandapuram", skills: ["Off-road Transport", "Patient Transfer"], teamAffiliation: "Vizag 4x4 Off-Roaders" } }
+    ];
+
+    const SEED_RESOURCES = [
+      { _id: "res-001", ref: "RES-WATER-01", name: "Packaged Drinking Water (1L Bottles)", resourceType: "Drinking Water", unit: "bottles", quantityTotal: 500, quantityReserved: 50, quantityDispatched: 100, storageLocation: "GVMC Warehouse, Jagadamba" },
+      { _id: "res-002", ref: "RES-FOOD-02", name: "Ready-to-Eat Food Packets", resourceType: "Food Packets", unit: "packets", quantityTotal: 300, quantityReserved: 40, quantityDispatched: 80, storageLocation: "AU Community Center" },
+      { _id: "res-003", ref: "RES-MED-03", name: "Standard First-Aid & Trauma Kits", resourceType: "First-Aid Kits", unit: "kits", quantityTotal: 80, quantityReserved: 10, quantityDispatched: 25, storageLocation: "KGH Emergency Store" },
+      { _id: "res-004", ref: "RES-BOAT-04", name: "Inflatable Rescue Boats (4-Person)", resourceType: "Boats", unit: "boats", quantityTotal: 5, quantityReserved: 1, quantityDispatched: 2, storageLocation: "Port Area Fire Station" },
+      { _id: "res-005", ref: "RES-BLANKET-05", name: "Woolen Relief Blankets", resourceType: "Blankets", unit: "blankets", quantityTotal: 250, quantityReserved: 30, quantityDispatched: 50, storageLocation: "Collectorate Depot" }
+    ];
+
+    function getLocalDB() {
+      let db = localStorage.getItem('sahyog_db_v2');
+      if (!db) {
+        const initial = {
+          incidents: SEED_INCIDENTS,
+          volunteers: SEED_VOLUNTEERS,
+          resources: SEED_RESOURCES,
+          audit: [
+            { createdAt: new Date(Date.now() - 30 * 60000).toISOString(), actorName: "System", action: "db:initialized", entityRef: "Vizag Scenario" },
+            { createdAt: new Date(Date.now() - 10 * 60000).toISOString(), actorName: "Coordinator Lakshmi", action: "volunteer:assigned", entityRef: "INC-VIZAG-002" }
+          ]
+        };
+        localStorage.setItem('sahyog_db_v2', JSON.stringify(initial));
+        return initial;
+      }
+      return JSON.parse(db);
+    }
+
+    function saveLocalDB(db) {
+      localStorage.setItem('sahyog_db_v2', JSON.stringify(db));
+    }
+
+    // --- 3. JACCARD SIMILARITY DUPLICATE DETECTOR (CLIENT-SIDE) ---
+    function tokenize(text) {
+      if (!text) return new Set();
+      return new Set(text.toLowerCase().replace(/[^\w\s\u0C00-\u0C7F]/g, ' ').split(/\s+/).filter(t => t.length > 2));
+    }
+    function jaccardSimilarity(setA, setB) {
+      if (!setA.size && !setB.size) return 1;
+      if (!setA.size || !setB.size) return 0;
+      const intersection = new Set([...setA].filter(x => setB.has(x)));
+      const union = new Set([...setA, ...setB]);
+      return intersection.size / union.size;
+    }
+    function findLocalDuplicates(reportText, location, category, list) {
+      const tokensMsg = tokenize(reportText);
+      const tokensLoc = tokenize(location);
+      const matches = [];
+
+      list.forEach(item => {
+        let score = 0;
+        const reasons = [];
+        if (item.category === category) {
+          score += 0.25;
+          reasons.push(`Same category: ${category}`);
+        }
+        const simLoc = jaccardSimilarity(tokensLoc, tokenize(item.locationDescription));
+        if (simLoc > 0.25) {
+          score += simLoc * 0.35;
+          reasons.push(`Location similarity ${(simLoc * 100).toFixed(0)}%`);
+        }
+        const simMsg = jaccardSimilarity(tokensMsg, tokenize(item.originalReport));
+        if (simMsg > 0.15) {
+          score += simMsg * 0.40;
+          reasons.push(`Description match ${(simMsg * 100).toFixed(0)}%`);
+        }
+        if (score >= 0.25) {
+          matches.push({
+            incidentId: item._id,
+            incidentRef: item.ref,
+            similarityScore: Math.min(1, score),
+            matchReasons: reasons
+          });
+        }
+      });
+      matches.sort((a, b) => b.similarityScore - a.similarityScore);
+      return matches.slice(0, 4);
+    }
+
+    // --- 4. SMART HYBRID API WRAPPER ---
+    async function api(endpoint, method = 'GET', body = null) {
+      const token = localStorage.getItem('sahyog_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token && token !== 'mock-local-token') {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      if (window.location.protocol === 'file:') {
+        isServerConnected = false;
+        setModeBanner(false);
+        return handleLocalMockApi(endpoint, method, body);
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      try {
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        // Check if response is HTML (e.g. Vercel 404/502 error page instead of API response)
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          console.warn(`[SahyogAI] Received non-JSON response for ${endpoint} (status ${res.status}). Switching to in-browser engine.`);
+          isServerConnected = false;
+          setModeBanner(false);
+          return handleLocalMockApi(endpoint, method, body);
+        }
+
+        const data = await res.json();
+
+        // If HTTP 404 from server or route not found, fallback to local mock engine
+        if (res.status === 404) {
+          console.warn(`[SahyogAI] Endpoint ${endpoint} 404 not found on server. Using in-browser engine.`);
+          isServerConnected = false;
+          setModeBanner(false);
+          return handleLocalMockApi(endpoint, method, body);
+        }
+
+        // If server returned 401/403/409/422 with JSON, this is a valid application error
+        if (!res.ok) {
+          const error = new Error(data.error || data.message || `HTTP ${res.status}`);
+          error.status = res.status;
+          throw error;
+        }
+
+        isServerConnected = true;
+        setModeBanner(true);
+        return data;
+
+      } catch (err) {
+        clearTimeout(timeoutId);
+
+        // If this is an intentional application error (like bad credentials 401 or conflict 409) from the live backend, bubble it up
+        if (err.status && err.status >= 400 && err.status < 500 && err.status !== 404) {
+          throw err;
+        }
+
+        // Network error, timeout, 404, or non-JSON HTML from hosting platform (like Vercel static)
+        console.warn(`[SahyogAI] Live backend unavailable (${err.message}). Using local standalone engine for ${endpoint}.`);
+        isServerConnected = false;
+        setModeBanner(false);
+        return handleLocalMockApi(endpoint, method, body);
+      }
+    }
+
+    function setModeBanner(connected) {
+      const icon = document.getElementById('modeIcon');
+      const text = document.getElementById('modeText');
+      const sseInd = document.getElementById('sseIndicator');
+      const sseTxt = document.getElementById('sseStatusText');
+
+      if (!icon || !text) return;
+
+      if (connected) {
+        icon.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        text.innerHTML = '🟢 Connected to SahyogAI Express & MongoDB Backend (<code class="bg-slate-700 px-1 rounded text-orange-300">' + (window.location.origin) + '</code>)';
+        if (sseInd) sseInd.className = 'w-2 h-2 rounded-full bg-emerald-500 inline-block';
+        if (sseTxt) sseTxt.textContent = 'Live SSE Sync';
+      } else {
+        icon.className = 'w-2 h-2 rounded-full bg-amber-400';
+        text.innerHTML = '💻 <strong>Local Standalone Mode:</strong> Full interactive triage, Jaccard duplicate search, inventory, & analytics active in-browser.';
+        if (sseInd) sseInd.className = 'w-2 h-2 rounded-full bg-amber-400 inline-block';
+        if (sseTxt) sseTxt.textContent = 'Local Engine';
+      }
+    }
+
+    // Client-side local engine handler
+    function handleLocalMockApi(endpoint, method, body) {
+      const db = getLocalDB();
+
+      // Health check
+      if (endpoint === '/health') {
+        return {
+          status: 'ok',
+          service: 'SahyogAI Engine',
+          ai: 'fallback-only',
+          demo: true
+        };
+      }
+
+      // Auth me
+      if (endpoint === '/auth/me') {
+        const u = currentUser || { displayName: "Demo Coordinator", role: "coordinator", username: "coordinator" };
+        return { success: true, user: u };
+      }
+
+      // Auth login
+      if (endpoint === '/auth/login') {
+        const volunteerUsernames = ['kiran_nss', 'priya_redcross', 'team_delta', 'team_braver'];
+        const role = body.username === 'admin' ? 'admin' : (body.username === 'analyst' ? 'analyst' : (volunteerUsernames.includes(body.username) ? 'volunteer' : 'coordinator'));
+        const displayName = body.username === 'kiran_nss' ? 'Kiran (AU NSS)' : (body.username.charAt(0).toUpperCase() + body.username.slice(1));
+        const u = { displayName: displayName, role: role, username: body.username };
+        return { success: true, token: 'mock-local-token', user: u };
+      }
+
+      // Auth logout
+      if (endpoint === '/auth/logout') {
+        return { success: true, message: 'Logged out' };
+      }
+
+      // Incidents list
+      if (endpoint.split('?')[0] === '/incidents' && method === 'GET') {
+        let list = [...db.incidents];
+        const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
+        const urg = urlParams.get('urgency');
+        const st = urlParams.get('status');
+        const srch = (urlParams.get('search') || '').toLowerCase();
+
+        if (urg && urg !== 'ALL') list = list.filter(i => i.effectiveUrgency === urg);
+        if (st && st !== 'ALL') list = list.filter(i => i.status === st);
+        if (srch) list = list.filter(i => (i.ref + i.locationDescription + i.originalReport).toLowerCase().includes(srch));
+
+        return { success: true, data: list };
+      }
+
+      // Create incident
+      if (endpoint === '/incidents' && method === 'POST') {
+        const newRef = `INC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        const newInc = {
+          _id: `inc-${Date.now()}`,
+          ref: newRef,
+          locationDescription: body.locationDescription,
+          originalReport: body.originalReport,
+          reportedCategory: body.reportedCategory,
+          category: body.reportedCategory,
+          effectiveUrgency: "Medium",
+          status: "submitted",
+          createdAt: new Date().toISOString(),
+          isDemo: Boolean(body.isDemo),
+          coordinates: body.coordinates || null
+        };
+        db.incidents.unshift(newInc);
+        db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || "Public Citizen", action: "incident:created", entityRef: newRef });
+        saveLocalDB(db);
+        return { success: true, data: newInc };
+      }
+
+      // Triage incident
+      if (endpoint.includes('/triage') && method === 'POST') {
+        const incId = endpoint.split('/')[2];
+        const inc = db.incidents.find(i => i._id === incId);
+        if (!inc) throw new Error("Incident not found");
+
+        const lower = (inc.originalReport + " " + inc.locationDescription).toLowerCase();
+        let urg = "Medium";
+        if (lower.includes('heart') || lower.includes('unconscious') || lower.includes('drown') || lower.includes('trapped') || lower.includes('bleeding') || lower.includes('boat') || lower.includes('urgent') || lower.includes('neellu')) {
+          urg = "Critical";
+        } else if (lower.includes('water') || lower.includes('food') || lower.includes('insulin') || lower.includes('elderly') || lower.includes('infant') || inc.reportedCategory === 'Medical Emergency') {
+          urg = "High";
+        }
+
+        const needs = [];
+        if (lower.includes('boat')) needs.push("Rescue Boat");
+        if (lower.includes('insulin') || lower.includes('medicine') || lower.includes('bp')) needs.push("Medicines / Insulin");
+        if (lower.includes('water')) needs.push("Drinking Water Cans");
+        if (lower.includes('food')) needs.push("Food Packets");
+        if (needs.length === 0) needs.push(inc.category || "Emergency Relief");
+
+        inc.effectiveUrgency = urg;
+        inc.status = "under_review";
+        inc.aiTriage = {
+          source: "fallback",
+          incidentTitle: `${inc.category} in ${inc.locationDescription.split(' ')[0]}`,
+          summary: `Distress verified at ${inc.locationDescription}. Inhabitants require urgent relief support.`,
+          immediateNeeds: needs,
+          hazards: urg === 'Critical' ? ["Life-safety threat reported"] : [],
+          confidence: "medium"
+        };
+
+        const duplicates = findLocalDuplicates(inc.originalReport, inc.locationDescription, inc.category, db.incidents.filter(x => x._id !== incId));
+        inc.duplicateCheck = { candidateMatches: duplicates };
+
+        saveLocalDB(db);
+        return {
+          success: true,
+          data: inc,
+          triage: { source: "fallback", recommendedUrgency: urg, processingMs: 420 },
+          duplicates: {
+            candidateCount: duplicates.length,
+            message: duplicates.length > 0 ? `${duplicates.length} possible matching report(s) found.` : "No likely matches in current dataset.",
+            candidates: duplicates
+          }
+        };
+      }
+
+      // Single incident
+      if (endpoint.startsWith('/incidents/') && method === 'GET') {
+        const incId = endpoint.split('/')[2];
+        const inc = db.incidents.find(i => i._id === incId);
+        if (!inc) throw new Error("Incident not found");
+        return { success: true, data: inc };
+      }
+
+      // Status change
+      if (endpoint.includes('/status') && method === 'POST') {
+        const incId = endpoint.split('/')[2];
+        const inc = db.incidents.find(i => i._id === incId);
+        if (inc) {
+          inc.status = body.status;
+          db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || "Coordinator", action: `status:${body.status}`, entityRef: inc.ref });
+          saveLocalDB(db);
+          return { success: true, data: inc };
+        }
+      }
+
+      // Volunteers
+      if (endpoint.startsWith('/volunteers') && method === 'GET') {
+        const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
+        const includeInactive = urlParams.get('includeInactive') === 'true';
+        const availability = urlParams.get('availability');
+        const volunteers = db.volunteers.filter(v =>
+          (includeInactive || v.isActive !== false) &&
+          (!availability || v.profile?.availability === availability)
+        );
+        return { success: true, data: volunteers };
+      }
+
+      if (endpoint === '/volunteers' && method === 'POST') {
+        const volunteer = {
+          _id: `vol-${Date.now()}`,
+          displayName: body.displayName,
+          username: body.username,
+          role: 'volunteer',
+          isActive: true,
+          profile: { ...body.profile, availability: 'available' }
+        };
+        db.volunteers.unshift(volunteer);
+        db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || 'Coordinator', action: 'volunteer:created', entityRef: volunteer.username });
+        saveLocalDB(db);
+        return { success: true, data: volunteer };
+      }
+
+      if (/^\/volunteers\/[^/]+$/.test(endpoint) && method === 'DELETE') {
+        const volunteerId = endpoint.split('/')[2];
+        const volunteer = db.volunteers.find(v => v._id === volunteerId);
+        if (!volunteer) throw new Error('Volunteer not found.');
+        if (volunteer.profile?.availability === 'assigned') {
+          throw new Error('Volunteer has active assignments. Complete or cancel them before deactivation.');
+        }
+        volunteer.isActive = false;
+        db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || 'Coordinator', action: 'volunteer:deactivated', entityRef: volunteer.username || volunteer.displayName });
+        saveLocalDB(db);
+        return { success: true, data: volunteer };
+      }
+
+      if (endpoint.startsWith('/volunteers/') && endpoint.endsWith('/reactivate') && method === 'PATCH') {
+        const volunteerId = endpoint.split('/')[2];
+        const volunteer = db.volunteers.find(v => v._id === volunteerId);
+        if (!volunteer) throw new Error('Volunteer not found.');
+        volunteer.isActive = true;
+        if (volunteer.profile?.availability === 'assigned') volunteer.profile.availability = 'available';
+        db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || 'Coordinator', action: 'volunteer:reactivated', entityRef: volunteer.username || volunteer.displayName });
+        saveLocalDB(db);
+        return { success: true, data: volunteer };
+      }
+
+      if (endpoint.startsWith('/volunteers/') && endpoint.endsWith('/availability') && method === 'PATCH') {
+        const volunteerId = endpoint.split('/')[2];
+        const volunteer = db.volunteers.find(v => v._id === volunteerId);
+        if (!volunteer) throw new Error('Volunteer not found.');
+        volunteer.profile = volunteer.profile || {};
+        if (body.availability === 'available' && volunteer.profile.availability === 'assigned') {
+          throw new Error('Volunteer has active assignments and cannot be marked available yet.');
+        }
+        volunteer.profile.availability = body.availability;
+        saveLocalDB(db);
+        return { success: true, data: volunteer };
+      }
+
+      // Volunteer assign
+      if (endpoint.includes('/volunteers/assign') && method === 'POST') {
+        const urlParams = new URLSearchParams(endpoint.split('?')[1] || '');
+        const incId = urlParams.get('incidentId');
+        const inc = db.incidents.find(i => i._id === incId);
+        const vol = db.volunteers.find(v => v._id === body.volunteerId);
+        if (inc && vol && vol.isActive !== false && vol.profile?.availability === 'available') {
+          inc.status = "assigned";
+          inc.assignments = [{ volunteerName: vol.displayName, volunteerId: vol._id }];
+          vol.profile.availability = "assigned";
+          db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || "Coordinator", action: "volunteer:assigned", entityRef: inc.ref });
+          saveLocalDB(db);
+          return { success: true, data: inc };
+        }
+      }
+
+      // Resources
+      if (endpoint.startsWith('/resources') && method === 'GET') {
+        return { success: true, data: db.resources };
+      }
+
+      if (endpoint === '/resources' && method === 'POST') {
+        const resource = {
+          _id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          ref: `RES-${Date.now().toString(36).toUpperCase()}`,
+          name: body.name.trim(),
+          resourceType: body.resourceType,
+          unit: body.unit.trim(),
+          quantityTotal: Number(body.quantityTotal),
+          quantityReserved: 0,
+          quantityDispatched: 0,
+          quantityDamaged: 0,
+          quantityAvailable: Number(body.quantityTotal),
+          storageLocation: body.storageLocation.trim(),
+          isDemo: true,
+        };
+        db.resources.unshift(resource);
+        db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || 'Coordinator', action: 'resource:created', entityRef: resource.name });
+        saveLocalDB(db);
+        return { success: true, data: resource };
+      }
+
+      // Resource movement
+      if (endpoint.includes('/movement') && method === 'POST') {
+        const resId = endpoint.split('/')[2];
+        const r = db.resources.find(x => x._id === resId);
+        if (r) {
+          const quantity = Number(body.quantity);
+          if (!Number.isSafeInteger(quantity) || quantity <= 0) throw new Error('Please enter a valid positive whole number.');
+          const avail = Math.max(0, r.quantityTotal - r.quantityReserved - r.quantityDispatched);
+          if (body.action === 'reserve') {
+            if (quantity > avail) throw new Error(`Only ${avail} ${r.unit} available. Cannot reserve.`);
+            r.quantityReserved += quantity;
+          } else if (body.action === 'dispatch') {
+            if (quantity > avail) throw new Error(`Only ${avail} ${r.unit} available. Cannot dispatch.`);
+            r.quantityDispatched += quantity;
+            r.quantityReserved = Math.max(0, r.quantityReserved - quantity);
+          } else if (body.action === 'add_stock') {
+            r.quantityTotal += quantity;
+          } else if (body.action === 'mark_damaged') {
+            if (quantity > avail) throw new Error(`Only ${avail} ${r.unit} available. Cannot mark as damaged.`);
+            r.quantityTotal -= quantity;
+            r.quantityDamaged = (r.quantityDamaged || 0) + quantity;
+          } else if (body.action === 'return') {
+            r.quantityDispatched = Math.max(0, r.quantityDispatched - quantity);
+          } else {
+            throw new Error('Unsupported inventory action.');
+          }
+          r.quantityAvailable = Math.max(0, r.quantityTotal - r.quantityReserved - r.quantityDispatched);
+          db.audit.unshift({ createdAt: new Date().toISOString(), actorName: currentUser?.displayName || "Coordinator", action: `resource:${body.action}`, entityRef: r.name });
+          saveLocalDB(db);
+          return { success: true, data: r };
+        }
+      }
+
+      // Analytics
+      if (endpoint.includes('/analytics/summary')) {
+        const total = db.incidents.length;
+        const closedStatuses = ['assistance_delivered', 'resolved', 'closed', 'cancelled'];
+        const crit = db.incidents.filter(i => i.effectiveUrgency === 'Critical' && !closedStatuses.includes(i.status)).length;
+        const awaiting = db.incidents.filter(i => ['submitted', 'under_review', 'verified', 'awaiting_assignment'].includes(i.status)).length;
+        const prog = db.incidents.filter(i => ['assigned', 'acknowledged', 'in_progress'].includes(i.status)).length;
+        const resolved = db.incidents.filter(i => ['assistance_delivered', 'resolved', 'closed'].includes(i.status)).length;
+        const confirmedDuplicates = db.incidents.filter(i => i.duplicateTag === 'confirmed_duplicate').length;
+        const volAvail = db.volunteers.filter(v => v.isActive !== false && v.profile?.availability === 'available').length;
+        const dispatched = db.resources.reduce((sum, r) => sum + (r.quantityDispatched || 0), 0);
+        const available = db.resources.reduce((sum, r) => sum + Math.max(0, (r.quantityTotal || 0) - (r.quantityReserved || 0) - (r.quantityDispatched || 0)), 0);
+        return {
+          success: true,
+          data: {
+            incidents: {
+              total,
+              open: db.incidents.filter(i => !closedStatuses.includes(i.status)).length,
+              critical: crit,
+              awaitingAssignment: awaiting,
+              inProgress: prog,
+              resolved,
+              confirmedDuplicates,
+              duplicateRate: total ? (confirmedDuplicates / total) * 100 : 0,
+            },
+            volunteers: { available: volAvail },
+            resources: { dispatched, available }
+          }
+        };
+      }
+
+      if (endpoint.includes('/analytics/incidents-by-urgency')) {
+        const map = {};
+        db.incidents.forEach(i => { map[i.effectiveUrgency] = (map[i.effectiveUrgency] || 0) + 1; });
+        return { success: true, data: Object.keys(map).map(k => ({ _id: k, count: map[k] })) };
+      }
+
+      if (endpoint.includes('/analytics/incidents-by-category')) {
+        const map = {};
+        db.incidents.forEach(i => { const cat = i.category || 'General'; map[cat] = (map[cat] || 0) + 1; });
+        return { success: true, data: Object.keys(map).map(k => ({ _id: k, count: map[k] })) };
+      }
+
+      if (endpoint.includes('/analytics/incidents-trend')) {
+        const daysParam = Number(new URLSearchParams(endpoint.split('?')[1] || '').get('days')) || 7;
+        const days = Math.min(90, Math.max(1, Math.floor(daysParam)));
+        const countsByDay = new Map();
+        db.incidents.forEach(incident => {
+          if (!incident.createdAt) return;
+          const day = new Date(incident.createdAt).toISOString().slice(0, 10);
+          countsByDay.set(day, (countsByDay.get(day) || 0) + 1);
+        });
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+        const data = Array.from({ length: days }, (_, index) => {
+          const date = new Date(today);
+          date.setUTCDate(today.getUTCDate() - (days - index - 1));
+          const key = date.toISOString().slice(0, 10);
+          return { _id: key, count: countsByDay.get(key) || 0 };
+        });
+        return {
+          success: true, data
+        };
+      }
+
+      if (endpoint.includes('/analytics/audit')) {
+        return { success: true, data: db.audit.slice(0, 8) };
+      }
+
+      return { success: true, message: "OK" };
+    }
+
+    // --- 5. LOCALIZATION STRINGS (EN / TE) ---
+    const translations = {
+      en: {
+        nav_home: "Home",
+        nav_action: "Submit SOS",
+        nav_result: "Dispatch Board",
+        nav_volunteers: "Volunteers",
+        nav_resources: "Relief Inventory",
+        nav_analytics: "Analytics",
+        btn_quick_sos: "Report Emergency",
+        hero_pill: "Built for Visakhapatnam & Coastal Disaster Readiness",
+        hero_promise: "Turning disaster chaos into organized relief through AI triage and real-time volunteer coordination.",
+        hero_problem: "When cyclones and flash floods hit coastal Andhra Pradesh, rescue lines are inundated with duplicate, unstructured distress reports. SahyogAI ingests English and Telugu messages, analyzes urgency using AI with deterministic fallbacks, detects duplicate requests, and streamlines volunteer dispatch.",
+        hero_cta: "Start Emergency Triage & Dispatch",
+        hero_volunteer_hub: "View Live Dispatch Board",
+        chaos_vs_order_title: "The Cyclone Rescue Bottleneck",
+        chaos_vs_order_subtitle: "Why traditional uncoordinated messaging fails ground rescue workers.",
+        scenario_before_title: "Before: Chaotic Forwarded Messages",
+        scenario_after_title: "After: SahyogAI Triage & Orchestration",
+        workflow_title: "Integrated Disaster Response Workflow",
+        action_title: "Emergency SOS Intake & AI Triage",
+        action_subtitle: "Type or paste raw distress messages in English, Telugu, or mixed Tanglish. Our server evaluates urgency with fallback resilience.",
+        quick_fill_label: "Try Vizag examples:",
+        form_category_label: "Primary Need Category",
+        form_location_label: "Location / Landmark in Visakhapatnam",
+        form_message_label: "Emergency Details",
+        btn_submit_triage: "Submit SOS & Run AI Triage",
+        dispatch_title: "Shared Dispatch Board",
+        dispatch_subtitle: "Central real-time incident queue with duplicate linking, assignment tracking, and status progression."
+      },
+      te: {
+        nav_home: "హోమ్",
+        nav_action: "అత్యవసర SOS",
+        nav_result: "డిస్పాచ్ బోర్డ్",
+        nav_volunteers: "వాలంటీర్లు",
+        nav_resources: "సహాయ సామాగ్రి",
+        nav_analytics: "విశ్లేషణ",
+        btn_quick_sos: "అత్యవసర నివేదిక",
+        hero_pill: "విశాఖపట్నం తీరప్రాంత తుఫాను అత్యవసర వ్యవస్థ",
+        hero_promise: "విపత్తు గందరగోళాన్ని AI సహాయంతో క్రమబద్ధీకరించి, వాలంటీర్ల సేవలను వేగవంతం చేయడం.",
+        hero_problem: "తుఫాను లేదా వరద వచ్చినప్పుడు వాట్సాప్ గ్రూపుల్లోని సమాచారం గందరగోళాన్ని పెంచుతుంది. SahyogAI తెలుగు మరియు ఇంగ్లీష్ సందేశాలను విశ్లేషించి, నకిలీలను గుర్తించి సహాయాన్ని వేగవంతం చేస్తుంది.",
+        hero_cta: "అత్యవసర సహాయం ప్రారంభించండి",
+        hero_volunteer_hub: "లైవ్ డిస్పాచ్ బోర్డు చూడండి",
+        chaos_vs_order_title: "తుఫాను సమయంలో ఎదురయ్యే ప్రధాన సమస్యలు",
+        chaos_vs_order_subtitle: "సంప్రదాయ మెసేజింగ్ గ్రూపులు ఎందుకు విఫలమవుతాయి?",
+        scenario_before_title: "ముందు: గందరగోళ సమాచారం",
+        scenario_after_title: "ఇప్పుడు: SahyogAI నిర్వహణ",
+        workflow_title: "సహాయం అందించే సమగ్ర విధానం",
+        action_title: "అత్యవసర SOS నమోదు & AI విశ్లేషణ",
+        action_subtitle: "తెలుగు లేదా ఇంగ్లీషులో వివరాలు నమోదు చేయండి. సర్వర్ వెంటనే తీవ్రతను గుర్తిస్తుంది.",
+        quick_fill_label: "విశాఖ ఉదాహరణలు:",
+        form_category_label: "అవసరమైన సహాయ వర్గం",
+        form_location_label: "ప్రాంతం / ల్యాండ్‌మార్క్ (విశాఖపట్నం)",
+        form_message_label: "సమస్య పూర్తి వివరాలు",
+        btn_submit_triage: "SOS నమోదు చేసి AI ద్వారా విశ్లేషించండి",
+        dispatch_title: "ప్రత్యక్ష డిస్పాచ్ బోర్డు",
+        dispatch_subtitle: "నకిలీ నివేదికల గుర్తింపు మరియు వాలంటీర్ల సమన్వయం కోసం సహాయ బోర్డు."
+      }
+    };
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'en' ? 'te' : 'en';
+      document.getElementById('langLabel').textContent = currentLang === 'en' ? 'తెలుగు (Telugu)' : 'English';
+      applyTranslations();
+      showToast(currentLang === 'te' ? 'తెలుగు భాష ఎంచుకోబడింది' : 'Switched to English', 'info');
+    }
+
+    function applyTranslations() {
+      const dict = translations[currentLang];
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict && dict[key]) el.textContent = dict[key];
+      });
+    }
+
+    // --- 6. NAVIGATION CONTROLLER ---
+    function navigate(screenName) {
+      ['home', 'action', 'result', 'volunteers', 'resources', 'analytics'].forEach(s => {
+        const el = document.getElementById(`screen-${s}`);
+        const navEl = document.getElementById(`nav-${s}`);
+        if (el) el.classList.add('hidden');
+        if (navEl) navEl.classList.remove('active', 'text-orange-600', 'bg-orange-50');
+      });
+
+      const target = document.getElementById(`screen-${screenName}`);
+      const navTarget = document.getElementById(`nav-${screenName}`);
+      if (target) target.classList.remove('hidden');
+      if (navTarget) navTarget.classList.add('active', 'text-orange-600', 'bg-orange-50');
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Trigger view data refreshes
+      if (screenName === 'result') fetchIncidents();
+      if (screenName === 'volunteers') fetchVolunteers();
+      if (screenName === 'resources') fetchResources();
+      if (screenName === 'analytics') loadAnalytics();
+    }
+
+    function toggleMobileNav() {
+      document.getElementById('mobileNavDrawer').classList.toggle('hidden');
+    }
+    function closeMobileNav() {
+      document.getElementById('mobileNavDrawer').classList.add('hidden');
+    }
+
+    // --- 7. AUTHENTICATION & SESSION HANDLING ---
+    async function initAuth() {
+      const token = localStorage.getItem('sahyog_token');
+      if (!token) {
+        currentUser = { displayName: "Demo Coordinator", role: "coordinator", username: "coordinator" };
+        renderAuthUI(currentUser);
+        return;
+      }
+      try {
+        const res = await api('/auth/me');
+        currentUser = res.user || { displayName: "Demo Coordinator", role: "coordinator", username: "coordinator" };
+        renderAuthUI(currentUser);
+      } catch (err) {
+        if (err.status === 401) localStorage.removeItem('sahyog_token');
+        currentUser = { displayName: "Demo Coordinator", role: "coordinator", username: "coordinator" };
+        renderAuthUI(currentUser);
+      }
+    }
+
+    function renderAuthUI(user) {
+      const area = document.getElementById('userBadgeArea');
+      const mobileArea = document.getElementById('mobileUserArea');
+      if (!user) {
+        const btnHtml = `<button onclick="openLoginModal()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg transition font-semibold"><i class="fa-solid fa-right-to-bracket mr-1"></i>Sign In</button>`;
+        area.innerHTML = btnHtml;
+        mobileArea.innerHTML = btnHtml;
+      } else {
+        const roleColors = { admin: 'bg-red-900 text-red-200', coordinator: 'bg-orange-900 text-orange-200', volunteer: 'bg-emerald-900 text-emerald-200', analyst: 'bg-purple-900 text-purple-200' };
+        const roleClass = roleColors[user.role] || 'bg-slate-800 text-slate-200';
+        const userHtml = `
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-800">${escapeHtml(user.displayName)}</span>
+            <span class="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${roleClass}">${user.role}</span>
+            <button onclick="handleLogout()" class="text-slate-400 hover:text-red-600 transition" title="Sign Out"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+          </div>
+        `;
+        area.innerHTML = userHtml;
+        mobileArea.innerHTML = userHtml;
+      }
+    }
+
+    function openLoginModal() { document.getElementById('loginModal').classList.remove('hidden'); }
+    function closeLoginModal() { document.getElementById('loginModal').classList.add('hidden'); }
+
+    async function handleLoginSubmit(e) {
+      e.preventDefault();
+      const u = document.getElementById('loginUsername').value.trim();
+      const p = document.getElementById('loginPassword').value;
+      const errEl = document.getElementById('loginError');
+      errEl.classList.add('hidden');
+
+      try {
+        const res = await api('/auth/login', 'POST', { username: u, password: p });
+        localStorage.setItem('sahyog_token', res.token);
+        currentUser = res.user;
+        renderAuthUI(currentUser);
+        closeLoginModal();
+        showToast(`Welcome back, ${currentUser.displayName}!`, 'success');
+        fetchIncidents();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    async function quickLogin(u, p) {
+      document.getElementById('loginUsername').value = u;
+      document.getElementById('loginPassword').value = p;
+      try {
+        const res = await api('/auth/login', 'POST', { username: u, password: p });
+        localStorage.setItem('sahyog_token', res.token);
+        currentUser = res.user;
+        renderAuthUI(currentUser);
+        closeLoginModal();
+        showToast(`Signed in as ${currentUser.displayName} (${currentUser.role})`, 'success');
+        fetchIncidents();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function hasCoordinatorAccess() {
+      return ['admin', 'coordinator'].includes(currentUser?.role);
+    }
+
+    function toggleAddVolunteerForm(show = true) {
+      document.getElementById('newVolunteerForm').classList.toggle('hidden', !show);
+    }
+
+    async function createVolunteer(e) {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const skills = document.getElementById('newVolunteerSkills').value
+        .split(',')
+        .map(skill => skill.trim())
+        .filter(Boolean);
+
+      try {
+        const result = await api('/volunteers', 'POST', {
+          displayName: document.getElementById('newVolunteerName').value.trim(),
+          username: document.getElementById('newVolunteerUsername').value.trim(),
+          password: document.getElementById('newVolunteerPassword').value,
+          profile: {
+            serviceArea: document.getElementById('newVolunteerArea').value.trim(),
+            teamAffiliation: document.getElementById('newVolunteerTeam').value.trim(),
+            skills
+          }
+        });
+        form.reset();
+        toggleAddVolunteerForm(false);
+        showToast(`Volunteer created: ${result.data?.username || result.data?.id || 'account added'}`, 'success');
+        await fetchVolunteers();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function deactivateVolunteer(volunteerId) {
+      if (!confirm('Deactivate this volunteer? Their ID and assignment history will be preserved.')) return;
+      try {
+        await api(`/volunteers/${encodeURIComponent(volunteerId)}`, 'DELETE');
+        showToast('Volunteer deactivated. Their demo ID and history are preserved.', 'success');
+        await fetchVolunteers();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function reactivateVolunteer(volunteerId) {
+      try {
+        await api(`/volunteers/${encodeURIComponent(volunteerId)}/reactivate`, 'PATCH');
+        showToast('Volunteer reactivated.', 'success');
+        await fetchVolunteers();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function handleLogout() {
+      try { await api('/auth/logout', 'POST'); } catch (e) {}
+      localStorage.removeItem('sahyog_token');
+      currentUser = null;
+      renderAuthUI(null);
+      showToast('Signed out successfully.', 'info');
+      fetchIncidents();
+    }
+
+    // --- 8. SOS INTAKE & TRIAGE EXECUTION ---
+    function selectCategory(catName) {
+      document.getElementById('selectedCategory').value = catName;
+      document.querySelectorAll('#categoryPillGroup .category-pill').forEach(btn => {
+        if (btn.getAttribute('data-category') === catName) {
+          btn.classList.add('border-orange-500', 'bg-orange-50', 'text-orange-700', 'ring-2', 'ring-orange-200');
+          btn.classList.remove('border-slate-200', 'text-slate-700');
+        } else {
+          btn.classList.remove('border-orange-500', 'bg-orange-50', 'text-orange-700', 'ring-2', 'ring-orange-200');
+          btn.classList.add('border-slate-200', 'text-slate-700');
+        }
+      });
+      saveDraft();
+    }
+
+    function captureGPS() {
+      if (!navigator.geolocation) {
+        showToast('Geolocation is not supported by your browser.', 'error');
+        return;
+      }
+      showToast('Requesting device coordinates...', 'info');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          capturedCoordinates = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: Math.round(pos.coords.accuracy),
+            source: 'gps'
+          };
+          document.getElementById('gpsCoordsNotice').classList.remove('hidden');
+          document.getElementById('gpsCoordsDisplay').textContent = `${capturedCoordinates.lat.toFixed(4)}, ${capturedCoordinates.lng.toFixed(4)} (±${capturedCoordinates.accuracy}m)`;
+          showToast('GPS coordinates captured.', 'success');
+        },
+        (err) => {
+          showToast('Could not obtain GPS permission. Location text description will be used.', 'error');
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+
+    function fillExample(idx) {
+      if (idx === 1) {
+        selectCategory('Medical Emergency');
+        document.getElementById('locationInput').value = "MVP Colony Sector 4 near Apollo Pharmacy";
+        document.getElementById('rawMessageInput').value = "Water is rising fast near MVP Colony sector 4, ground floor flooded. My elderly uncle needs BP medicine and insulin urgently. Please send rescue boat!";
+        document.getElementById('peopleCountInput').value = "1-3";
+      } else if (idx === 2) {
+        selectCategory('Flooding');
+        document.getElementById('locationInput').value = "RK Beach Road fishing hamlet";
+        document.getElementById('rawMessageInput').value = "సముద్రం నుంచి అలలు వస్తున్నాయి, మా ఇంట్లోకి వరద నీరు చేరింది. మేము నలుగురం టెర్రస్ పైన చిక్కుకున్నాము. దయచేసి బోట్ సహాయం పంపండి!";
+        document.getElementById('peopleCountInput').value = "4-8";
+      }
+      saveDraft();
+      showToast('Loaded realistic Visakhapatnam distress example.', 'info');
+    }
+
+    function saveDraft() {
+      const draft = {
+        category: document.getElementById('selectedCategory').value,
+        location: document.getElementById('locationInput').value,
+        message: document.getElementById('rawMessageInput').value,
+        people: document.getElementById('peopleCountInput').value,
+        contact: document.getElementById('contactInput').value,
+      };
+      localStorage.setItem('sahyog_draft', JSON.stringify(draft));
+    }
+
+    function loadDraft() {
+      const saved = localStorage.getItem('sahyog_draft');
+      if (!saved) return;
+      try {
+        const d = JSON.parse(saved);
+        if (d.category) selectCategory(d.category);
+        if (d.location) document.getElementById('locationInput').value = d.location;
+        if (d.message) document.getElementById('rawMessageInput').value = d.message;
+        if (d.people) document.getElementById('peopleCountInput').value = d.people;
+        if (d.contact) document.getElementById('contactInput').value = d.contact;
+      } catch (e) {}
+    }
+
+    async function handleTriageSubmit(e) {
+      e.preventDefault();
+
+      const location = document.getElementById('locationInput').value.trim();
+      const rawMessage = document.getElementById('rawMessageInput').value.trim();
+      const category = document.getElementById('selectedCategory').value;
+      const people = document.getElementById('peopleCountInput').value;
+      const phone = document.getElementById('contactInput').value.trim();
+      const isDemo = document.getElementById('demoCheckbox').checked;
+
+      // Validate
+      let hasError = false;
+      if (!location || location.length < 3) {
+        document.getElementById('locationError').classList.remove('hidden');
+        hasError = true;
+      } else {
+        document.getElementById('locationError').classList.add('hidden');
+      }
+
+      if (!rawMessage || rawMessage.length < 10) {
+        document.getElementById('messageError').classList.remove('hidden');
+        hasError = true;
+      } else {
+        document.getElementById('messageError').classList.add('hidden');
+      }
+
+      if (hasError) return;
+
+      // Toggle UI to loading
+      document.getElementById('aiEmptyState').classList.add('hidden');
+      document.getElementById('aiErrorState').classList.add('hidden');
+      document.getElementById('aiResultState').classList.add('hidden');
+      document.getElementById('aiLoadingState').classList.remove('hidden');
+
+      const submitBtn = document.getElementById('submitTriageBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Submitting & Analyzing...`;
+
+      try {
+        const payload = {
+          originalReport: rawMessage,
+          locationDescription: location,
+          reportedCategory: category,
+          affectedCountRange: people,
+          isDemo: isDemo,
+        };
+        if (phone) payload.contactPhone = phone;
+        if (capturedCoordinates) payload.coordinates = capturedCoordinates;
+
+        const createRes = await api('/incidents', 'POST', payload);
+        const incident = createRes.data;
+
+        const triageRes = await api(`/incidents/${incident._id}/triage`, 'POST');
+        const updatedIncident = triageRes.data;
+
+        // Render AI result preview
+        document.getElementById('aiLoadingState').classList.add('hidden');
+        document.getElementById('aiResultState').classList.remove('hidden');
+
+        // Engine source banner
+        const srcBanner = document.getElementById('sourceBanner');
+        const isGemini = triageRes.triage?.source === 'gemini';
+        if (isGemini) {
+          srcBanner.className = 'p-2.5 rounded-xl text-xs flex items-center justify-between border bg-emerald-50 border-emerald-300 text-emerald-900';
+          srcBanner.innerHTML = `
+            <span class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-emerald-600"></i> Live Gemini AI Analysis</span>
+            <span class="font-mono text-[10px] bg-white px-2 py-0.5 rounded border border-emerald-300 font-bold">${triageRes.triage.processingMs}ms</span>
+          `;
+          document.getElementById('aiEngineTag').textContent = 'Gemini 1.5 Flash';
+        } else {
+          srcBanner.className = 'p-2.5 rounded-xl text-xs flex items-center justify-between border bg-amber-50 border-amber-300 text-amber-900';
+          srcBanner.innerHTML = `
+            <span class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-shield-halved text-amber-600"></i> Deterministic Fallback Engine Active</span>
+            <span class="text-[10px] bg-white px-2 py-0.5 rounded border border-amber-300">Coordinator Review Required</span>
+          `;
+          document.getElementById('aiEngineTag').textContent = 'Rule Fallback';
+        }
+
+        // Urgency badge
+        const urg = updatedIncident.effectiveUrgency || 'Medium';
+        const urgBadge = document.getElementById('resUrgencyBadge');
+        urgBadge.textContent = urg.toUpperCase();
+        urgBadge.className = `${urgencyBadgeClass(urg)} px-2.5 py-1 rounded-full font-bold uppercase text-[11px]`;
+
+        document.getElementById('resCategory').textContent = updatedIncident.category || category;
+        document.getElementById('resTicketRef').textContent = updatedIncident.ref;
+        document.getElementById('resSummary').textContent = updatedIncident.aiTriage?.summary || updatedIncident.originalReport;
+
+        // Immediate needs pills
+        const needsContainer = document.getElementById('resNeeds');
+        needsContainer.innerHTML = '';
+        const needs = updatedIncident.aiTriage?.immediateNeeds || [];
+        if (needs.length === 0) {
+          needsContainer.innerHTML = `<span class="text-slate-400 italic">None specified</span>`;
+        } else {
+          needs.forEach(n => {
+            const span = document.createElement('span');
+            span.className = 'bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200 font-medium';
+            span.textContent = n;
+            needsContainer.appendChild(span);
+          });
+        }
+
+        // Duplicate search results
+        const dupContainer = document.getElementById('resDuplicateContainer');
+        const dupCount = triageRes.duplicates?.candidateCount || 0;
+        if (dupCount > 0) {
+          dupContainer.className = 'p-3 rounded-xl border text-xs space-y-1.5 bg-purple-50 border-purple-300 text-purple-950';
+          dupContainer.innerHTML = `
+            <div class="flex items-center gap-1.5 font-bold">
+              <i class="fa-solid fa-copy text-purple-600"></i>
+              <span>Potential Match: Found ${dupCount} similar recent record(s)</span>
+            </div>
+            <p class="text-[11px] text-purple-900">${escapeHtml(triageRes.duplicates.message)}</p>
+          `;
+        } else {
+          dupContainer.className = 'p-2.5 rounded-xl border text-xs bg-slate-50 border-slate-200 text-slate-700';
+          dupContainer.innerHTML = `
+            <span class="flex items-center gap-1.5 font-medium">
+              <i class="fa-solid fa-check text-emerald-600"></i>
+              <span>No likely duplicate matches found in current dataset.</span>
+            </span>
+          `;
+        }
+
+        localStorage.removeItem('sahyog_draft');
+        showToast(`SOS Dispatched! Ref ID: ${updatedIncident.ref}`, 'success');
+        fetchIncidents();
+
+      } catch (err) {
+        document.getElementById('aiLoadingState').classList.add('hidden');
+        document.getElementById('aiErrorState').classList.remove('hidden');
+        document.getElementById('aiErrorMessage').textContent = err.message || 'Submission failed.';
+        showToast(err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-microchip"></i> <span data-i18n="btn_submit_triage">${currentLang === 'te' ? 'SOS నమోదు చేసి AI ద్వారా విశ్లేషించండి' : 'Submit SOS & Run AI Triage'}</span>`;
+      }
+    }
+
+    // --- 9. DISPATCH BOARD RENDERING ---
+    async function fetchIncidents() {
+      try {
+        const urgency = document.getElementById('urgencyFilter')?.value || 'ALL';
+        const status = document.getElementById('statusFilter')?.value || 'ALL';
+        const search = document.getElementById('searchFilter')?.value.trim() || '';
+
+        let query = `/incidents?limit=50&sortBy=createdAt&sortDir=desc`;
+        if (urgency !== 'ALL') query += `&urgency=${encodeURIComponent(urgency)}`;
+        if (status !== 'ALL') query += `&status=${encodeURIComponent(status)}`;
+        if (search) query += `&search=${encodeURIComponent(search)}`;
+
+        const res = await api(query);
+        incidents = res.data || [];
+        renderIncidentsGrid(incidents);
+        updateCounters(incidents);
+        document.getElementById('syncTimestamp').textContent = `Synced: ${new Date().toLocaleTimeString()}`;
+      } catch (err) {
+        console.error('Failed to fetch incidents:', err);
+        showToast(`Could not load the dispatch board: ${err.message}`, 'error');
+      }
+    }
+
+    function renderIncidentsGrid(items) {
+      const grid = document.getElementById('ticketsGrid');
+      const emptyState = document.getElementById('ticketsEmptyState');
+      if (!grid) return;
+
+      if (!items || items.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+      grid.innerHTML = '';
+
+      items.forEach(t => {
+        const card = document.createElement('div');
+        card.className = "bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition space-y-4 flex flex-col justify-between";
+
+        const badgeClass = urgencyBadgeClass(t.effectiveUrgency);
+        const iconClass = urgencyIcon(t.effectiveUrgency);
+
+        let statusBadge = `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-semibold">${formatStatus(t.status)}</span>`;
+        if (t.status === 'in_progress' || t.status === 'assigned') {
+          statusBadge = `<span class="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded text-xs font-semibold"><i class="fa-solid fa-person-running mr-1"></i>${formatStatus(t.status)}</span>`;
+        } else if (t.status === 'assistance_delivered' || t.status === 'resolved') {
+          statusBadge = `<span class="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded text-xs font-semibold"><i class="fa-solid fa-circle-check mr-1"></i>${formatStatus(t.status)}</span>`;
+        }
+
+        const demoTag = t.isDemo ? `<span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">DEMO</span>` : `<span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">LIVE</span>`;
+        const aiSourceLabel = t.aiTriage?.source === 'gemini' ? `<span class="text-[10px] text-emerald-700 font-mono"><i class="fa-solid fa-microchip"></i> AI</span>` : `<span class="text-[10px] text-slate-400 font-mono">Fallback</span>`;
+
+        card.innerHTML = `
+          <div class="space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="${badgeClass} px-2 py-0.5 rounded text-[11px] font-extrabold uppercase flex items-center gap-1">
+                  <i class="${iconClass}"></i> ${t.effectiveUrgency}
+                </span>
+                ${demoTag}
+              </div>
+              <span class="text-xs text-slate-400 font-medium" title="${new Date(t.createdAt).toLocaleString()}">${timeAgo(t.createdAt)}</span>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between text-xs text-slate-400 font-mono mb-1">
+                <span>${t.ref}</span>
+                ${aiSourceLabel}
+              </div>
+              <h3 class="font-extrabold text-slate-900 text-base line-clamp-1">${escapeHtml(t.aiTriage?.incidentTitle || t.category || 'Emergency Incident')}</h3>
+              <p class="text-xs text-slate-600 font-medium flex items-center gap-1 mt-1">
+                <i class="fa-solid fa-location-dot text-orange-600"></i>
+                <span class="line-clamp-1">${escapeHtml(t.locationDescription)}</span>
+              </p>
+            </div>
+
+            <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              "${escapeHtml(t.originalReport)}"
+            </p>
+
+            <div class="flex flex-wrap gap-1">
+              ${(t.aiTriage?.immediateNeeds || [t.category]).slice(0, 3).map(need => `
+                <span class="bg-slate-100 text-slate-700 text-[10px] font-semibold px-2 py-0.5 rounded">${escapeHtml(need)}</span>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+            <div>${statusBadge}</div>
+            <button onclick="openTaskModal('${t._id}')" class="bg-slate-900 hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+              <span>View & Dispatch</span>
+              <i class="fa-solid fa-chevron-right text-[10px]"></i>
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function updateCounters(items) {
+      const total = items.length;
+      const terminalStatuses = ['assistance_delivered', 'resolved', 'closed', 'cancelled'];
+      const critical = items.filter(t => t.effectiveUrgency === 'Critical' && !terminalStatuses.includes(t.status)).length;
+      const claimed = items.filter(t => ['assigned', 'acknowledged', 'in_progress'].includes(t.status)).length;
+      const resolved = items.filter(t => ['assistance_delivered', 'resolved', 'closed'].includes(t.status)).length;
+
+      document.getElementById('statTotalCount').textContent = total;
+      document.getElementById('statCriticalCount').textContent = critical;
+      document.getElementById('statClaimedCount').textContent = claimed;
+      document.getElementById('statResolvedCount').textContent = resolved;
+
+      const activeUnresolved = items.filter(t => !terminalStatuses.includes(t.status)).length;
+      document.getElementById('activeCountBadge').textContent = activeUnresolved;
+      document.getElementById('mobileActiveCount').textContent = activeUnresolved;
+    }
+
+    function resetFilters() {
+      document.getElementById('urgencyFilter').value = 'ALL';
+      document.getElementById('statusFilter').value = 'ALL';
+      document.getElementById('searchFilter').value = '';
+      fetchIncidents();
+    }
+
+    // --- 10. INCIDENT MODAL DETAIL & ACTIONS ---
+    async function openTaskModal(incidentId) {
+      try {
+        const res = await api(`/incidents/${incidentId}`);
+        const inc = res.data;
+        currentModalIncident = inc;
+        const canManage = hasCoordinatorAccess();
+        document.getElementById('modalVolunteerSection').classList.toggle('hidden', !canManage);
+
+        document.getElementById('modalId').textContent = inc.ref;
+        document.getElementById('modalTitle').textContent = inc.aiTriage?.incidentTitle || inc.category || 'Emergency Incident';
+        document.getElementById('modalLocation').innerHTML = `<i class="fa-solid fa-location-dot text-orange-600"></i> ${escapeHtml(inc.locationDescription)}`;
+        document.getElementById('modalMessage').textContent = inc.originalReport;
+        document.getElementById('modalStatus').textContent = formatStatus(inc.status);
+
+        if (inc.isDemo) document.getElementById('modalDemoTag').classList.remove('hidden');
+        else document.getElementById('modalDemoTag').classList.add('hidden');
+
+        const urgBadge = document.getElementById('modalUrgencyBadge');
+        urgBadge.textContent = inc.effectiveUrgency.toUpperCase();
+        urgBadge.className = `${urgencyBadgeClass(inc.effectiveUrgency)} px-2 py-0.5 rounded text-xs font-bold uppercase`;
+
+        const assignedVol = inc.assignments?.[0]?.volunteerName || "Unassigned (Available)";
+        document.getElementById('modalAssignee').textContent = assignedVol;
+
+        const aiSource = inc.aiTriage?.source === 'gemini' ? 'Gemini 1.5 Flash' : 'Rule Fallback';
+        document.getElementById('modalAiSource').textContent = aiSource;
+        document.getElementById('modalAiSummary').textContent = inc.aiTriage?.summary || inc.originalReport;
+
+        const mapContainer = document.getElementById('modalMapContainer');
+        if (inc.coordinates && inc.coordinates.lat && inc.coordinates.lng) {
+          mapContainer.classList.remove('hidden');
+          setTimeout(() => {
+            initMiniMap(inc.coordinates.lat, inc.coordinates.lng, inc.locationDescription);
+          }, 200);
+        } else {
+          mapContainer.classList.add('hidden');
+        }
+
+        const dupBox = document.getElementById('modalDuplicatesBox');
+        const dupList = document.getElementById('modalDuplicatesList');
+        if (inc.duplicateCheck?.candidateMatches?.length > 0) {
+          dupBox.classList.remove('hidden');
+          dupList.innerHTML = inc.duplicateCheck.candidateMatches.map(m => `
+            <div class="bg-white p-2 rounded-lg border border-purple-200 flex items-center justify-between">
+              <span><strong>${m.incidentRef}</strong> (${(m.similarityScore * 100).toFixed(0)}% match) — ${escapeHtml(m.matchReasons.join(', '))}</span>
+              <button onclick="linkDuplicate('${m.incidentId}')" class="text-[10px] bg-purple-600 text-white font-bold px-2 py-1 rounded hover:bg-purple-700">Link</button>
+            </div>
+          `).join('');
+        } else {
+          dupBox.classList.add('hidden');
+        }
+
+        renderStatusButtons(inc.status);
+        if (canManage) populateVolunteerDropdown();
+        document.getElementById('taskModal').classList.remove('hidden');
+
+      } catch (err) {
+        showToast(`Could not load incident: ${err.message}`, 'error');
+      }
+    }
+
+    function closeTaskModal() {
+      document.getElementById('taskModal').classList.add('hidden');
+      currentModalIncident = null;
+      if (leafletMapInstance) {
+        leafletMapInstance.remove();
+        leafletMapInstance = null;
+      }
+    }
+
+    function initMiniMap(lat, lng, locName) {
+      if (leafletMapInstance) leafletMapInstance.remove();
+      leafletMapInstance = L.map('miniMap').setView([lat, lng], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(leafletMapInstance);
+      L.marker([lat, lng]).addTo(leafletMapInstance)
+        .bindPopup(`<b>${escapeHtml(locName)}</b><br>Reported Location`).openPopup();
+    }
+
+    function renderStatusButtons(status) {
+      const container = document.getElementById('modalStatusButtons');
+      container.parentElement.classList.toggle('hidden', !hasCoordinatorAccess());
+      container.innerHTML = '';
+      if (!hasCoordinatorAccess()) return;
+
+      const transitions = {
+        submitted: ['under_review', 'cancelled'],
+        under_review: ['verified', 'cancelled'],
+        verified: ['awaiting_assignment'],
+        awaiting_assignment: ['assigned'],
+        assigned: ['acknowledged'],
+        acknowledged: ['in_progress'],
+        in_progress: ['assistance_delivered'],
+        assistance_delivered: ['resolved'],
+        resolved: ['closed']
+      };
+
+      const allowed = transitions[status] || [];
+      if (allowed.length === 0) {
+        container.innerHTML = `<span class="text-xs text-slate-400 italic">No further status transitions permitted.</span>`;
+        return;
+      }
+
+      allowed.forEach(nxt => {
+        const btn = document.createElement('button');
+        btn.className = 'text-xs bg-slate-100 hover:bg-orange-100 text-slate-800 hover:text-orange-700 font-bold px-3 py-1.5 rounded-xl border border-slate-200 transition';
+        btn.textContent = `Move to ${formatStatus(nxt)}`;
+        btn.onclick = () => updateIncidentStatus(nxt);
+        container.appendChild(btn);
+      });
+    }
+
+    async function updateIncidentStatus(newStatus) {
+      if (!currentModalIncident) return;
+      try {
+        await api(`/incidents/${currentModalIncident._id}/status`, 'POST', {
+          status: newStatus,
+          note: `Status updated by ${currentUser?.displayName || 'Coordinator'}`
+        });
+        showToast(`Incident status updated to ${formatStatus(newStatus)}`, 'success');
+        openTaskModal(currentModalIncident._id);
+        fetchIncidents();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function populateVolunteerDropdown() {
+      const select = document.getElementById('modalVolunteerSelect');
+      select.innerHTML = `<option value="">Select Volunteer Team...</option>`;
+      try {
+        if (volunteersList.length === 0) {
+          const res = await api('/volunteers?limit=50');
+          volunteersList = res.data || [];
+        }
+        volunteersList.filter(v => v.isActive !== false && v.profile?.availability === 'available').forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v._id;
+          opt.textContent = `${v.displayName} (${v.profile?.serviceArea || 'Vizag'})`;
+          select.appendChild(opt);
+        });
+      } catch (err) {
+        showToast(`Could not load available volunteers: ${err.message}`, 'error');
+      }
+    }
+
+    async function assignVolunteerToCurrentIncident() {
+      if (!currentModalIncident || !hasCoordinatorAccess()) return;
+      const select = document.getElementById('modalVolunteerSelect');
+      const volId = select.value;
+      if (!volId) {
+        showToast('Please select a volunteer from the list.', 'error');
+        return;
+      }
+      try {
+        await api(`/volunteers/assign?incidentId=${currentModalIncident._id}`, 'POST', {
+          volunteerId: volId,
+          coordinatorNote: "Assigned via Central Dispatch Board"
+        });
+        showToast('Volunteer successfully assigned!', 'success');
+        volunteersList = [];
+        openTaskModal(currentModalIncident._id);
+        fetchIncidents();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function linkDuplicate(relatedId) {
+      if (!currentModalIncident) return;
+      try {
+        await api(`/incidents/${currentModalIncident._id}/link`, 'POST', {
+          relatedId: relatedId,
+          duplicateTag: 'related'
+        });
+        showToast('Incidents linked as related.', 'success');
+        openTaskModal(currentModalIncident._id);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // --- 11. VOLUNTEER MODULE ---
+    async function fetchVolunteers() {
+      const grid = document.getElementById('volunteersGrid');
+      grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>Loading volunteers...</div>';
+      const canManage = hasCoordinatorAccess();
+      document.getElementById('volunteerAdminControls').classList.toggle('hidden', !canManage);
+      if (!canManage) toggleAddVolunteerForm(false);
+
+      try {
+        const filter = document.getElementById('volAvailabilityFilter')?.value;
+        let query = `/volunteers?limit=50`;
+        if (filter) query += `&availability=${filter}`;
+        if (canManage && document.getElementById('showInactiveVolunteers').checked) query += '&includeInactive=true';
+
+        const res = await api(query);
+        volunteersList = res.data || [];
+
+        if (volunteersList.length === 0) {
+          grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400">No volunteers match the selected filter.</div>';
+          return;
+        }
+
+        grid.innerHTML = '';
+        volunteersList.forEach(v => {
+          const avail = v.profile?.availability || 'available';
+          const isActive = v.isActive !== false;
+          const volunteerId = String(v._id || v.id || '');
+          const isSelf = currentUser?.role === 'volunteer' && String(currentUser.id || currentUser._id) === volunteerId;
+          const availClasses = {
+            available: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+            assigned: 'bg-amber-100 text-amber-800 border-amber-300',
+            unavailable: 'bg-red-100 text-red-800 border-red-300',
+            'off-duty': 'bg-slate-100 text-slate-700 border-slate-300'
+          };
+          const cls = availClasses[avail] || 'bg-slate-100 text-slate-700';
+          const availabilityControl = isActive && (canManage || isSelf)
+            ? `<select onchange="changeVolunteerStatus('${volunteerId}', this.value)" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none">
+                <option value="available" ${avail === 'available' ? 'selected' : ''}>Available</option>
+                <option value="assigned" ${avail === 'assigned' ? 'selected' : ''}>Assigned</option>
+                <option value="unavailable" ${avail === 'unavailable' ? 'selected' : ''}>Unavailable</option>
+                <option value="off-duty" ${avail === 'off-duty' ? 'selected' : ''}>Off-Duty</option>
+              </select>`
+            : `<span class="text-xs text-slate-500">${escapeHtml(avail)}</span>`;
+          const managementAction = canManage
+            ? isActive
+              ? `<button onclick="deactivateVolunteer('${volunteerId}')" class="text-xs text-red-700 hover:text-red-900 font-semibold">Deactivate</button>`
+              : `<button onclick="reactivateVolunteer('${volunteerId}')" class="text-xs text-emerald-700 hover:text-emerald-900 font-semibold">Reactivate</button>`
+            : '';
+
+          const card = document.createElement('div');
+          card.className = `bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4${isActive ? '' : ' opacity-70'}`;
+          card.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                  <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <div>
+                  <h4 class="font-bold text-slate-900 text-sm">${escapeHtml(v.displayName)}</h4>
+                  <p class="text-xs text-slate-500">${escapeHtml(v.profile?.teamAffiliation || 'Volunteer Cell')}</p>
+                </div>
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${isActive ? cls : 'bg-slate-100 text-slate-600 border-slate-300'}">${isActive ? escapeHtml(avail) : 'inactive'}</span>
+            </div>
+
+            <div class="text-xs text-slate-600 space-y-1">
+              <div><strong>Sector:</strong> ${escapeHtml(v.profile?.serviceArea || 'Visakhapatnam')}</div>
+              <div><strong>Skills:</strong> ${escapeHtml((v.profile?.skills || ['Rescue', 'First Aid']).join(', '))}</div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span class="text-slate-400 font-mono text-[10px]">ID: ${escapeHtml(volunteerId.slice(-6))}</span>
+              ${availabilityControl}
+              ${managementAction}
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+
+      } catch (err) {
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-red-500">Could not load volunteers: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async function changeVolunteerStatus(volId, newStatus) {
+      if (!hasCoordinatorAccess() && !(currentUser?.role === 'volunteer' && String(currentUser.id || currentUser._id) === String(volId))) return;
+      try {
+        await api(`/volunteers/${volId}/availability`, 'PATCH', { availability: newStatus });
+        showToast('Volunteer status updated.', 'success');
+        fetchVolunteers();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // --- 12. RELIEF INVENTORY MODULE ---
+    async function fetchResources() {
+      const grid = document.getElementById('resourcesGrid');
+      document.getElementById('resourceCreateButton').classList.toggle('hidden', !hasCoordinatorAccess());
+      grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>Loading inventory...</div>';
+
+      try {
+        const res = await api('/resources?limit=50');
+        resourcesList = res.data || [];
+
+        if (resourcesList.length === 0) {
+          grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400">No inventory records stored.</div>';
+          return;
+        }
+
+        grid.innerHTML = '';
+        resourcesList.forEach(r => {
+          const avail = r.quantityAvailable !== undefined ? r.quantityAvailable : Math.max(0, r.quantityTotal - r.quantityReserved - r.quantityDispatched);
+          const isLow = avail <= (r.lowStockThreshold || 10);
+          const managementActions = hasCoordinatorAccess()
+            ? `<button onclick="openRestockResourceModal('${r._id}')" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold text-xs py-1.5 rounded-xl transition">
+                <i class="fa-solid fa-plus mr-1"></i>Restock
+              </button>
+              <button onclick="handleResourceMovement('${r._id}', 'reserve')" class="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs py-1.5 rounded-xl transition">
+                Reserve
+              </button>
+              <button onclick="handleResourceMovement('${r._id}', 'dispatch')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-1.5 rounded-xl transition">
+                Dispatch
+              </button>`
+            : '';
+
+          const card = document.createElement('div');
+          card.className = 'bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4';
+          card.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-[10px] font-mono text-slate-400">${r.ref}</span>
+                <h4 class="font-bold text-slate-900 text-sm">${escapeHtml(r.name)}</h4>
+              </div>
+              ${isLow ? '<span class="text-[10px] bg-red-100 text-red-800 border border-red-300 px-2 py-0.5 rounded font-bold uppercase">Low Stock</span>' : '<span class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded font-bold uppercase">In Stock</span>'}
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 text-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+              <div>
+                <span class="text-slate-400 block text-[10px]">Total</span>
+                <span class="font-bold text-slate-800">${r.quantityTotal}</span>
+              </div>
+              <div>
+                <span class="text-amber-600 block text-[10px]">Reserved</span>
+                <span class="font-bold text-amber-700">${r.quantityReserved}</span>
+              </div>
+              <div>
+                <span class="text-emerald-600 block text-[10px]">Available</span>
+                <span class="font-bold text-emerald-700 text-sm">${avail}</span>
+              </div>
+            </div>
+
+            <div class="text-[11px] text-slate-500 space-y-0.5">
+              <div><strong>Storage:</strong> ${escapeHtml(r.storageLocation || 'Central Depot')}</div>
+              <div><strong>Unit:</strong> ${escapeHtml(r.unit)}</div>
+            </div>
+
+            ${managementActions ? `<div class="pt-2 border-t border-slate-100 flex items-center gap-2">${managementActions}</div>` : ''}
+          `;
+          grid.appendChild(card);
+        });
+
+      } catch (err) {
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-red-500">Could not load inventory: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    let resourceModalMode = 'create';
+    let resourceModalResourceId = null;
+
+    function openCreateResourceModal() {
+      if (!hasCoordinatorAccess()) return;
+      resourceModalMode = 'create';
+      resourceModalResourceId = null;
+      document.getElementById('resourceModalTitle').textContent = 'Create New Goods';
+      document.getElementById('resourceModalDescription').textContent = 'Add a new product to the relief inventory.';
+      document.getElementById('resourceCreateFields').classList.remove('hidden');
+      document.getElementById('resourceQuantityLabel').textContent = 'Initial Quantity Received';
+      document.getElementById('resourceModalSubmit').textContent = 'Create Goods';
+      document.getElementById('resourceName').value = '';
+      document.getElementById('resourceType').value = 'Drinking Water';
+      document.getElementById('resourceUnit').value = '';
+      document.getElementById('resourceLocation').value = '';
+      document.getElementById('resourceQuantity').value = '1';
+      ['resourceName', 'resourceType', 'resourceUnit', 'resourceLocation'].forEach(id => {
+        document.getElementById(id).disabled = false;
+      });
+      document.getElementById('resourceModal').classList.remove('hidden');
+    }
+
+    function openRestockResourceModal(resourceId) {
+      if (!hasCoordinatorAccess()) return;
+      const resource = resourcesList.find(item => String(item._id) === String(resourceId));
+      if (!resource) {
+        showToast('Inventory item could not be found. Refresh the stock list and try again.', 'error');
+        return;
+      }
+      resourceModalMode = 'restock';
+      resourceModalResourceId = resourceId;
+      document.getElementById('resourceModalTitle').textContent = `Restock ${resource.name}`;
+      document.getElementById('resourceModalDescription').textContent = 'Enter the quantity received to increase current stock.';
+      document.getElementById('resourceCreateFields').classList.add('hidden');
+      ['resourceName', 'resourceType', 'resourceUnit', 'resourceLocation'].forEach(id => {
+        document.getElementById(id).disabled = true;
+      });
+      document.getElementById('resourceQuantityLabel').textContent = `Received Quantity (${resource.unit})`;
+      document.getElementById('resourceModalSubmit').textContent = 'Add Stock';
+      document.getElementById('resourceQuantity').value = '1';
+      document.getElementById('resourceModal').classList.remove('hidden');
+    }
+
+    function closeResourceModal() {
+      document.getElementById('resourceModal').classList.add('hidden');
+    }
+
+    async function submitResourceModal(event) {
+      event.preventDefault();
+      if (!hasCoordinatorAccess()) return;
+
+      const quantity = Number(document.getElementById('resourceQuantity').value);
+      if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+        showToast('Please enter a valid positive whole number.', 'error');
+        return;
+      }
+
+      const submitButton = document.getElementById('resourceModalSubmit');
+      submitButton.disabled = true;
+      try {
+        if (resourceModalMode === 'create') {
+          await api('/resources', 'POST', {
+            name: document.getElementById('resourceName').value.trim(),
+            resourceType: document.getElementById('resourceType').value,
+            quantityTotal: quantity,
+            unit: document.getElementById('resourceUnit').value.trim(),
+            storageLocation: document.getElementById('resourceLocation').value.trim(),
+          });
+          showToast('New goods added to the inventory.', 'success');
+        } else {
+          await api(`/resources/${resourceModalResourceId}/movement`, 'POST', {
+            action: 'add_stock',
+            quantity,
+            note: 'Manual stock restock',
+          });
+          showToast(`Stock increased by ${quantity} units.`, 'success');
+        }
+        closeResourceModal();
+        await fetchResources();
+        refreshAnalyticsIfVisible();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        submitButton.disabled = false;
+      }
+    }
+
+    async function handleResourceMovement(resourceId, action) {
+      if (!hasCoordinatorAccess()) return;
+      const qtyStr = prompt(`Enter quantity to ${action}:`, "10");
+      if (!qtyStr) return;
+      const qty = Number(qtyStr);
+      if (!Number.isSafeInteger(qty) || qty <= 0) {
+        showToast('Please enter a valid positive whole number.', 'error');
+        return;
+      }
+      const resource = resourcesList.find(item => String(item._id) === String(resourceId));
+      const available = resource?.quantityAvailable !== undefined
+        ? resource.quantityAvailable
+        : resource ? Math.max(0, resource.quantityTotal - resource.quantityReserved - resource.quantityDispatched) : null;
+      if (available !== null && ['reserve', 'dispatch', 'mark_damaged'].includes(action) && qty > available) {
+        showToast(`Only ${available} ${resource.unit} currently available.`, 'error');
+        return;
+      }
+      try {
+        await api(`/resources/${resourceId}/movement`, 'POST', {
+          action: action,
+          quantity: qty,
+          note: `Manual ${action}`
+        });
+        showToast(`Successfully processed ${action} for ${qty} units.`, 'success');
+        await fetchResources();
+        refreshAnalyticsIfVisible();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function refreshAnalyticsIfVisible() {
+      if (!document.getElementById('screen-analytics').classList.contains('hidden')) {
+        loadAnalytics();
+      }
+    }
+
+    // --- 13. ANALYTICS & CHARTS MODULE ---
+    async function loadAnalytics() {
+      try {
+        const [sumRes, catRes, urgRes, trendRes, auditRes] = await Promise.all([
+          api('/analytics/summary'),
+          api('/analytics/incidents-by-category'),
+          api('/analytics/incidents-by-urgency'),
+          api('/analytics/incidents-trend?days=7'),
+          api('/analytics/audit?limit=8')
+        ]);
+
+        const s = sumRes.data;
+        document.getElementById('kpiTotal').textContent = s.incidents?.total || 0;
+        document.getElementById('kpiCritical').textContent = s.incidents?.critical || 0;
+        document.getElementById('kpiAwaiting').textContent = s.incidents?.awaitingAssignment || 0;
+        document.getElementById('kpiProgress').textContent = s.incidents?.inProgress || 0;
+        document.getElementById('kpiVolAvail').textContent = s.volunteers?.available || 0;
+        document.getElementById('kpiDispatched').textContent = s.resources?.dispatched || 0;
+        document.getElementById('overviewAvailableStock').textContent = (s.resources?.available || 0).toLocaleString();
+        document.getElementById('overviewCriticalSOS').textContent = s.incidents?.critical || 0;
+        document.getElementById('overviewResolved').textContent = s.incidents?.resolved || 0;
+        document.getElementById('overviewDuplicateCount').textContent = s.incidents?.confirmedDuplicates || 0;
+        document.getElementById('overviewDuplicateRate').textContent = `${(s.incidents?.duplicateRate || 0).toFixed(1)}%`;
+        document.getElementById('analyticsUpdated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+
+        renderUrgencyChart(urgRes.data || []);
+        renderCategoryChart(catRes.data || []);
+        renderTrendChart(trendRes.data || []);
+
+        const tbody = document.getElementById('auditTableBody');
+        tbody.innerHTML = '';
+        (auditRes.data || []).forEach(ev => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50';
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 text-slate-500 font-mono">${timeAgo(ev.createdAt)}</td>
+            <td class="py-2.5 px-3 font-semibold text-slate-800">${escapeHtml(ev.actorName || 'System')}</td>
+            <td class="py-2.5 px-3"><span class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono">${escapeHtml(ev.action)}</span></td>
+            <td class="py-2.5 px-3 font-mono text-slate-500">${escapeHtml(ev.entityRef || ev.entityType || 'Record')}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function renderUrgencyChart(data) {
+      const ctx = document.getElementById('urgencyChart')?.getContext('2d');
+      if (!ctx) return;
+      if (urgencyChartInstance) urgencyChartInstance.destroy();
+
+      const labels = data.map(d => d._id || 'Unknown');
+      const counts = data.map(d => d.count);
+      const bgColors = labels.map(l => {
+        if (l === 'Critical') return '#DC2626';
+        if (l === 'High') return '#D97706';
+        if (l === 'Medium' || l === 'Moderate') return '#4F46E5';
+        return '#16A34A';
+      });
+
+      urgencyChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{ data: counts, backgroundColor: bgColors }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
+        }
+      });
+    }
+
+    function renderCategoryChart(data) {
+      const ctx = document.getElementById('categoryChart')?.getContext('2d');
+      if (!ctx) return;
+      if (categoryChartInstance) categoryChartInstance.destroy();
+
+      categoryChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.map(d => (d._id || 'General').split('/')[0].slice(0, 14)),
+          datasets: [{
+            label: 'Incidents',
+            data: data.map(d => d.count),
+            backgroundColor: '#3B82F6',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+
+    function renderTrendChart(data) {
+      const ctx = document.getElementById('trendChart')?.getContext('2d');
+      if (!ctx) return;
+      if (trendChartInstance) trendChartInstance.destroy();
+
+      trendChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.map(d => d._id.slice(5)),
+          datasets: [{
+            label: 'Incidents Reported',
+            data: data.map(d => d.count),
+            borderColor: '#10B981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+
+    // --- 14. REAL-TIME SERVER-SENT EVENTS (SSE) ---
+    function initSSE() {
+      if (window.location.protocol === 'file:') return;
+      try {
+        if (sseSource) sseSource.close();
+        sseSource = new EventSource(`${API_BASE}/events`);
+
+        sseSource.addEventListener('connected', () => {
+          isServerConnected = true;
+          setModeBanner(true);
+        });
+
+        sseSource.addEventListener('incident:created', (e) => {
+          const data = JSON.parse(e.data);
+          showToast(`⚡ New SOS Dispatched: ${data.incident?.ref}`, 'info');
+          fetchIncidents();
+          refreshAnalyticsIfVisible();
+        });
+
+        sseSource.addEventListener('incident:status_changed', (e) => {
+          const data = JSON.parse(e.data);
+          showToast(`Status updated on ${data.incidentRef} → ${formatStatus(data.status)}`, 'info');
+          fetchIncidents();
+          refreshAnalyticsIfVisible();
+        });
+
+        ['incident:updated', 'incident:triage_complete'].forEach(eventName => {
+          sseSource.addEventListener(eventName, () => {
+            refreshAnalyticsIfVisible();
+          });
+        });
+
+        sseSource.addEventListener('assignment:created', (e) => {
+          const data = JSON.parse(e.data);
+          showToast(`Volunteer assigned to ${data.incidentRef}`, 'success');
+          fetchIncidents();
+          refreshAnalyticsIfVisible();
+        });
+
+        sseSource.addEventListener('assignment:updated', () => {
+          fetchIncidents();
+          refreshAnalyticsIfVisible();
+          if (!document.getElementById('screen-volunteers').classList.contains('hidden')) {
+            fetchVolunteers();
+          }
+        });
+
+        sseSource.addEventListener('resource:updated', () => {
+          if (!document.getElementById('screen-resources').classList.contains('hidden')) {
+            fetchResources();
+          }
+          refreshAnalyticsIfVisible();
+        });
+
+        ['volunteer:created', 'volunteer:deactivated', 'volunteer:reactivated'].forEach(eventName => {
+          sseSource.addEventListener(eventName, () => {
+            if (!document.getElementById('screen-volunteers').classList.contains('hidden')) {
+              fetchVolunteers();
+            }
+            refreshAnalyticsIfVisible();
+          });
+        });
+
+        let sseErrorCount = 0;
+        sseSource.onerror = () => {
+          setModeBanner(false);
+          sseErrorCount++;
+          if (sseErrorCount >= 2) {
+            if (sseSource) {
+              sseSource.close();
+              sseSource = null;
+            }
+          }
+        };
+      } catch (err) {}
+    }
+
+    // --- 15. UTILITIES & HELPERS ---
+    function timeAgo(dateInput) {
+      if (!dateInput) return '';
+      const d = new Date(dateInput);
+      const seconds = Math.floor((new Date() - d) / 1000);
+      if (seconds < 60) return 'Just now';
+      const mins = Math.floor(seconds / 60);
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      return `${days}d ago`;
+    }
+
+    function formatStatus(status) {
+      if (!status) return 'Submitted';
+      return status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    function urgencyBadgeClass(urg) {
+      if (urg === 'Critical') return 'badge-critical';
+      if (urg === 'High') return 'badge-high';
+      if (urg === 'Medium' || urg === 'Moderate') return 'badge-moderate';
+      return 'badge-low';
+    }
+
+    function urgencyIcon(urg) {
+      if (urg === 'Critical') return 'fa-solid fa-triangle-exclamation';
+      if (urg === 'High') return 'fa-solid fa-circle-exclamation';
+      if (urg === 'Medium' || urg === 'Moderate') return 'fa-solid fa-clock';
+      return 'fa-solid fa-info-circle';
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    let toastTimer = null;
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMessage');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastMsg.textContent = msg;
+      if (type === 'success') toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-base';
+      else if (type === 'info') toastIcon.className = 'fa-solid fa-circle-info text-blue-400 text-base';
+      else toastIcon.className = 'fa-solid fa-circle-exclamation text-red-400 text-base';
+
+      toast.classList.remove('hidden');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.add('hidden'), 4000);
+    }
+
+    // Modal click-outside dismissal
+    document.getElementById('taskModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'taskModal') closeTaskModal();
+    });
+    document.getElementById('loginModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'loginModal') closeLoginModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeTaskModal();
+        closeLoginModal();
+      }
+    });
+
+    // Startup initialization
+    window.addEventListener('DOMContentLoaded', async () => {
+      await initAuth();
+      loadDraft();
+      initSSE();
+      await fetchIncidents();
+    });
+  </script>
+</body>
+</html>
